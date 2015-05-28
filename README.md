@@ -1,6 +1,6 @@
 # Record Notation (RECON)
 
-[![Build Status](https://travis-ci.org/coeffect/recon-js.svg?branch=master)](https://travis-ci.org/coeffect/recon-js) [![Coverage Status](https://coveralls.io/repos/coeffect/recon-js/badge.svg?branch=master)](https://coveralls.io/r/coeffect/recon-js?branch=master)
+[![Build Status](https://travis-ci.org/web-aware/recon-js.svg?branch=master)](https://travis-ci.org/web-aware/recon-js) [![Coverage Status](https://coveralls.io/repos/web-aware/recon-js/badge.svg?branch=master)](https://coveralls.io/r/web-aware/recon-js?branch=master)
 
 RECON brings attributes into the era of object notation, and provides a simple
 grammar and uniform tree model for attributed text markup.  RECON aims to
