@@ -206,40 +206,20 @@ Record.prototype.isEmpty = function () {
 Record.prototype.isArray = function () {
   return this.items.length >= 0 && Object.getOwnPropertyNames(this.index).length === 0;
 };
-Record.prototype.isMarkup = function () {
-  function isBlank(string) {
-    var cs = new StringIterator(string);
-    while (!cs.isEmpty() && isSpace(cs.head())) cs.step();
-    return cs.isEmpty();
-  }
+Record.prototype.isBlockSafe = function () {
   var items = this.iterator();
-  var afterNonText = false;
-  var hasNonText = false;
-  var sections = 0;
   while (!items.isEmpty()) {
-    var item = items.head();
-    if (typeof item !== 'string') {
-      if (afterNonText) return false;
-      afterNonText = true;
-      hasNonText = true;
-    }
-    else if (afterNonText && !isBlank(item)) {
-      afterNonText = false;
-      sections += 1;
-    }
-    else if (sections === 0) sections = 1;
-    items.step();
+    if (items.next().isAttr) return false;
   }
-  return hasNonText && sections >= 2;
+  return true;
 };
-Record.prototype.hasAttrs = function () {
-  return this.items.length > 0 && (this.items[0].isAttr || this.items[this.items.length - 1].isAttr);
-};
-Record.prototype.hasPrefixAttrs = function () {
-  return this.items.length > 0 && this.items[0].isAttr;
-};
-Record.prototype.hasPostfixAttrs = function () {
-  return this.items.length > 0 && this.items[this.items.length - 1].isAttr;
+Record.prototype.isMarkupSafe = function () {
+  var items = this.iterator();
+  if (items.isEmpty() || !items.next().isAttr) return false;
+  while (!items.isEmpty()) {
+    if (items.next().isAttr) return false;
+  }
+  return true;
 };
 Record.prototype.contains = function (key) {
   return this(key) !== undefined;
@@ -369,13 +349,6 @@ RecordIterator.prototype.dup = function () {
 };
 RecordIterator.prototype.toRecord = function () {
   return new Record(this.items.slice(this.index));
-};
-RecordIterator.prototype.isAllAttrs = function () {
-  var items = this.dup();
-  while (!items.isEmpty()) {
-    if (!items.next().isAttr) return false;
-  }
-  return true;
 };
 
 
@@ -764,7 +737,12 @@ BlockParser.prototype.feed = function (input) {
   while (!input.isEmpty() || input.isDone()) {
     if (s === 1) {
       while (!input.isEmpty() && (c = input.head(), isWhitespace(c))) input.step();
-      if (!input.isEmpty()) s = 2;
+      if (!input.isEmpty()) {
+        if (c === 64/*'@'*/ || c === 123/*'{'*/ || c === 91/*'['*/ || isNameStartChar(c) ||
+            c === 34/*'"'*/ || c === 45/*'-'*/ || c >= 48/*'0'*/ && c <= 57/*'9'*/ || c === 37/*'%'*/)
+          s = 2;
+        else return new StringIteratee.Error({expected: 'block value', found: c});
+      }
       else if (input.isDone()) return new StringIteratee.Done(builder.state());
     }
     if (s === 2) {
@@ -923,20 +901,20 @@ BlockValueParser.prototype.feed = function (input) {
           value = new MarkupParser(builder);
           s = 5;
         }
-        else if (c === 34/*'"'*/) {
-          value = new StringParser();
+        else if (isNameStartChar(c)) {
+          value = new IdentParser();
           s = 4;
         }
-        else if (c === 37/*'%'*/) {
-          value = new DataParser();
+        else if (c === 34/*'"'*/) {
+          value = new StringParser();
           s = 4;
         }
         else if (c === 45/*'-'*/ || c >= 48/*'0'*/ && c <= 57/*'9'*/) {
           value = new NumberParser();
           s = 4;
         }
-        else if (isNameStartChar(c)) {
-          value = new IdentParser();
+        else if (c === 37/*'%'*/) {
+          value = new DataParser();
           s = 4;
         }
         else if (!builder) return new StringIteratee.Done(Absent);
@@ -982,24 +960,8 @@ BlockValueParser.prototype.feed = function (input) {
     }
     if (s === 6) {
       while (!input.isEmpty() && isSpace(input.head())) input.step();
-      if (!input.isEmpty()) {
-        if (input.head() === 64/*'@'*/) {
-          field = new AttrParser();
-          s = 7;
-        }
-        else return new StringIteratee.Done(builder.state());
-      }
-      else if (input.isDone()) return new StringIteratee.Done(builder.state());
-    }
-    if (s === 7) {
-      while ((!input.isEmpty() || input.isDone()) && field.isCont()) field = field.feed(input);
-      if (field.isDone()) {
-        builder = builder || new ValueBuilder();
-        builder.appendField(field.state());
-        field = null;
-        s = 6;
-      }
-      else if (field.isError()) return field;
+      if (!input.isEmpty() && input.head() === 64/*'@'*/) s = 1;
+      else return new StringIteratee.Done(builder.state());
     }
   }
   return new BlockValueParser(builder, field, value, s);
@@ -1021,71 +983,79 @@ InlineValueParser.prototype.feed = function (input) {
   var value = this.value;
   var field = this.field;
   var builder = this.builder;
-  while (!input.isEmpty() || input.isDone()) {
-    if (s === 1) {
-      if (!input.isEmpty()) {
-        c = input.head();
-        if (c === 64/*'@'*/) {
-          field = new AttrParser();
-          s = 2;
+  if (s === 1) {
+    if (!input.isEmpty()) {
+      c = input.head();
+      if (c === 64/*'@'*/) {
+        field = new AttrParser();
+        s = 2;
+      }
+      else if (c === 123/*'{'*/) {
+        if (builder) {
+          value = new RecordParser(builder);
+          s = 5;
         }
-        else if (c === 123/*'{'*/) {
-          if (builder) {
-            value = new RecordParser(builder);
-            s = 5;
-          }
-          else {
-            value = new RecordParser();
-            s = 4;
-          }
+        else {
+          value = new RecordParser();
+          s = 4;
         }
-        else if (c === 91/*'['*/) {
-          if (builder) {
-            value = new MarkupParser(builder);
-            s = 5;
-          }
-          else {
-            value = new MarkupParser();
-            s = 4;
-          }
+      }
+      else if (c === 91/*'['*/) {
+        if (builder) {
+          value = new MarkupParser(builder);
+          s = 5;
         }
-        else if (!builder) return new StringIteratee.Done(Absent);
-        else return new StringIteratee.Done(builder.state());
+        else {
+          value = new MarkupParser();
+          s = 4;
+        }
       }
-      else if (input.isDone()) {
-        if (!builder) return new StringIteratee.Done(Absent);
-        else return new StringIteratee.Done(builder.state());
+      else if (!builder) return new StringIteratee.Done(Extant);
+      else return new StringIteratee.Done(builder.state());
+    }
+    else if (input.isDone()) {
+      if (!builder) return new StringIteratee.Done(Extant);
+      else return new StringIteratee.Done(builder.state());
+    }
+  }
+  if (s === 2) {
+    while ((!input.isEmpty() || input.isDone()) && field.isCont()) field = field.feed(input);
+    if (field.isDone()) {
+      builder = builder || new ValueBuilder();
+      builder.appendField(field.state());
+      field = null;
+      s = 3;
+    }
+    else if (field.isError()) return field;
+  }
+  if (s === 3) {
+    if (!input.isEmpty()) {
+      c = input.head();
+      if (c === 123/*'{'*/) {
+        value = new RecordParser(builder);
+        s = 5;
       }
-    }
-    if (s === 2) {
-      while ((!input.isEmpty() || input.isDone()) && field.isCont()) field = field.feed(input);
-      if (field.isDone()) {
-        builder = builder || new ValueBuilder();
-        builder.appendField(field.state());
-        field = null;
-        s = 3;
+      else if (c === 91/*'['*/) {
+        value = new MarkupParser(builder);
+        s = 5;
       }
-      else if (field.isError()) return field;
+      else return new StringIteratee.Done(builder.state());
     }
-    if (s === 3) {
-      while (!input.isEmpty() && isSpace(input.head())) input.step();
-      if (!input.isEmpty()) s = 1;
-      else if (input.isDone()) return new StringIteratee.Done(builder.state());
+    else if (input.isDone()) return new StringIteratee.Done(builder.state());
+  }
+  if (s === 4) {
+    while ((!input.isEmpty() || input.isDone()) && value.isCont()) value = value.feed(input);
+    if (value.isDone()) {
+      builder = builder || new ValueBuilder();
+      builder.appendValue(value.state());
+      return new StringIteratee.Done(builder.state());
     }
-    if (s === 4) {
-      while ((!input.isEmpty() || input.isDone()) && value.isCont()) value = value.feed(input);
-      if (value.isDone()) {
-        builder = builder || new ValueBuilder();
-        builder.appendValue(value.state());
-        return new StringIteratee.Done(builder.state());
-      }
-      else if (value.isError()) return value;
-    }
-    if (s === 5) {
-      while ((!input.isEmpty() || input.isDone()) && value.isCont()) value = value.feed(input);
-      if (value.isDone()) return new StringIteratee.Done(builder.state());
-      else if (value.isError()) return value;
-    }
+    else if (value.isError()) return value;
+  }
+  if (s === 5) {
+    while ((!input.isEmpty() || input.isDone()) && value.isCont()) value = value.feed(input);
+    if (value.isDone()) return new StringIteratee.Done(builder.state());
+    else if (value.isError()) return value;
   }
   return new InlineValueParser(builder, field, value, s);
 };
@@ -1340,6 +1310,43 @@ MarkupParser.prototype.feed = function (input) {
 };
 
 
+function IdentParser(builder, s) {
+  StringIteratee.call(this);
+  this.builder = builder || null;
+  this.s = s || 1;
+}
+IdentParser.prototype = Object.create(StringIteratee.prototype);
+IdentParser.prototype.constructor = IdentParser;
+IdentParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var builder = this.builder;
+  if (s === 1) {
+    if (!input.isEmpty() && (c = input.head(), isNameStartChar(c))) {
+      builder = builder || new StringBuilder();
+      input.step();
+      builder.append(c);
+      s = 2;
+    }
+    else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'identitifer', found: c});
+    else if (input.isDone()) return StringIteratee.unexpectedEOF;
+  }
+  if (s === 2) {
+    while (!input.isEmpty() && (c = input.head(), isNameChar(c))) {
+      input.step();
+      builder.append(c);
+    }
+    if (!input.isEmpty() || input.isDone()) {
+      var value = builder.state();
+      if (value === 'true') value = true;
+      else if (value === 'false') value = false;
+      return new StringIteratee.Done(value);
+    }
+  }
+  return new IdentParser(builder, s);
+};
+
+
 function StringParser(text, s) {
   StringIteratee.call(this);
   this.text = text || null;
@@ -1424,77 +1431,6 @@ StringParser.prototype.feed = function (input) {
     }
   }
   return new StringParser(text, s);
-};
-
-
-function DataParser(data, s) {
-  StringIteratee.call(this);
-  this.data = data || null;
-  this.s = s || 1;
-}
-DataParser.prototype = Object.create(StringIteratee.prototype);
-DataParser.prototype.constructor = DataParser;
-DataParser.prototype.feed = function (input) {
-  var c = 0;
-  var s = this.s;
-  var data = this.data || new DataBuilder();
-  if (s === 1) {
-    if (!input.isEmpty() && (c = input.head(), c === 37/*'%'*/)) {
-      input.step();
-      s = 2;
-    }
-    else if (!input.isEmpty()) return new StringIteratee.Error({expected: '\'%\'', found: c});
-    else if (input.isDone()) return StringIteratee.unexpectedEOF;
-  }
-  while (!input.isEmpty() || input.isDone()) {
-    if (s === 2) {
-      if (!input.isEmpty() && (c = input.head(), isBase64Char(c))) {
-        input.step();
-        data.appendBase64Char(c);
-        s = 3;
-      }
-      else if (!input.isEmpty() || input.isDone()) return new StringIteratee.Done(data.state());
-    }
-    if (s === 3) {
-      if (!input.isEmpty() && (c = input.head(), isBase64Char(c))) {
-        input.step();
-        data.appendBase64Char(c);
-        s = 4;
-      }
-      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'base64 digit', found: c});
-      else if (input.isDone()) return StringIteratee.unexpectedEOF;
-    }
-    if (s === 4) {
-      if (!input.isEmpty() && (c = input.head(), isBase64Char(c) || c === 61/*'='*/)) {
-        input.step();
-        data.appendBase64Char(c);
-        if (c !== 61/*'='*/) s = 5;
-        else s = 6;
-      }
-      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'base64 digit', found: c});
-      else if (input.isDone()) return StringIteratee.unexpectedEOF;
-    }
-    if (s === 5) {
-      if (!input.isEmpty() && (c = input.head(), isBase64Char(c) || c === 61/*'='*/)) {
-        input.step();
-        data.appendBase64Char(c);
-        if (c !== 61/*'='*/) s = 2;
-        else return new StringIteratee.Done(data.state());
-      }
-      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'base64 digit', found: c});
-      else if (input.isDone()) return StringIteratee.unexpectedEOF;
-    }
-    else if (s === 6) {
-      if (!input.isEmpty() && (c = input.head(), c === 61/*'='*/)) {
-        input.step();
-        data.appendBase64Char(c);
-        return new StringIteratee.Done(data.state());
-      }
-      else if (!input.isEmpty()) return new StringIteratee.Error({expected: '\'=\'', found: c});
-      else if (input.isDone()) return StringIteratee.unexpectedEOF;
-    }
-  }
-  return new DataParser(data, s);
 };
 
 
@@ -1624,49 +1560,84 @@ NumberParser.prototype.feed = function (input) {
   return new NumberParser(builder, s);
 };
 
-function IdentParser(builder, s) {
+
+function DataParser(data, s) {
   StringIteratee.call(this);
-  this.builder = builder || null;
+  this.data = data || null;
   this.s = s || 1;
 }
-IdentParser.prototype = Object.create(StringIteratee.prototype);
-IdentParser.prototype.constructor = IdentParser;
-IdentParser.prototype.feed = function (input) {
+DataParser.prototype = Object.create(StringIteratee.prototype);
+DataParser.prototype.constructor = DataParser;
+DataParser.prototype.feed = function (input) {
   var c = 0;
   var s = this.s;
-  var builder = this.builder;
+  var data = this.data || new DataBuilder();
   if (s === 1) {
-    if (!input.isEmpty() && (c = input.head(), isNameStartChar(c))) {
-      builder = builder || new StringBuilder();
+    if (!input.isEmpty() && (c = input.head(), c === 37/*'%'*/)) {
       input.step();
-      builder.append(c);
       s = 2;
     }
-    else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'identitifer', found: c});
+    else if (!input.isEmpty()) return new StringIteratee.Error({expected: '\'%\'', found: c});
     else if (input.isDone()) return StringIteratee.unexpectedEOF;
   }
-  if (s === 2) {
-    while (!input.isEmpty() && (c = input.head(), isNameChar(c))) {
-      input.step();
-      builder.append(c);
+  while (!input.isEmpty() || input.isDone()) {
+    if (s === 2) {
+      if (!input.isEmpty() && (c = input.head(), isBase64Char(c))) {
+        input.step();
+        data.appendBase64Char(c);
+        s = 3;
+      }
+      else if (!input.isEmpty() || input.isDone()) return new StringIteratee.Done(data.state());
     }
-    if (!input.isEmpty() || input.isDone()) {
-      var value = builder.state();
-      if (value === 'true') value = true;
-      else if (value === 'false') value = false;
-      return new StringIteratee.Done(value);
+    if (s === 3) {
+      if (!input.isEmpty() && (c = input.head(), isBase64Char(c))) {
+        input.step();
+        data.appendBase64Char(c);
+        s = 4;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'base64 digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 4) {
+      if (!input.isEmpty() && (c = input.head(), isBase64Char(c) || c === 61/*'='*/)) {
+        input.step();
+        data.appendBase64Char(c);
+        if (c !== 61/*'='*/) s = 5;
+        else s = 6;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'base64 digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 5) {
+      if (!input.isEmpty() && (c = input.head(), isBase64Char(c) || c === 61/*'='*/)) {
+        input.step();
+        data.appendBase64Char(c);
+        if (c !== 61/*'='*/) s = 2;
+        else return new StringIteratee.Done(data.state());
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'base64 digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    else if (s === 6) {
+      if (!input.isEmpty() && (c = input.head(), c === 61/*'='*/)) {
+        input.step();
+        data.appendBase64Char(c);
+        return new StringIteratee.Done(data.state());
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: '\'=\'', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
     }
   }
-  return new IdentParser(builder, s);
+  return new DataParser(data, s);
 };
 
 
 function ReconWriter(builder) {
   Object.defineProperty(this, 'builder', {value: builder || new StringBuilder()});
 }
-ReconWriter.prototype.writeValue = function (value, inMarkup) {
-  if (value.isRecord) this.writeRecord(value, inMarkup);
-  else if (typeof value === 'string') this.writeText(value, inMarkup);
+ReconWriter.prototype.writeValue = function (value) {
+  if (value.isRecord) this.writeRecord(value);
+  else if (typeof value === 'string') this.writeText(value);
   else if (typeof value === 'number') this.writeNumber(value);
   else if (typeof value === 'boolean') this.writeBool(value);
   else if (value instanceof Uint8Array) this.writeData(value);
@@ -1690,129 +1661,131 @@ ReconWriter.prototype.writeItem = function (item) {
 };
 ReconWriter.prototype.writeBlock = function (value) {
   if (!value.isRecord) this.writeValue(value);
-  else if (value.isMarkup()) this.writeMarkup(value);
-  else if (value.hasAttrs()) this.writeRecord(value);
+  else if (!value.isEmpty()) this.writeItems(value, value.isBlockSafe(), false);
   else {
-    var items = value.iterator();
-    if (!items.isEmpty()) {
-      this.writeItem(items.next());
-      while (!items.isEmpty()) {
-        this.builder.append(44/*','*/);
-        this.writeItem(items.next());
-      }
-    }
+    this.builder.append(123/*'{'*/);
+    this.builder.append(125/*'}'*/);
   }
 };
-ReconWriter.prototype.writeRecord = function (record, inMarkup) {
-  if (record.isMarkup()) this.writeMarkup(record);
+ReconWriter.prototype.writeRecord = function (record) {
+  if (!record.isEmpty()) this.writeItems(record, false, false);
   else {
-    var items = record.iterator();
-    var item;
-    var hasAttrs = false;
-    while (!items.isEmpty() && (item = items.head(), item.isAttr)) {
-      this.writeAttr(item);
-      items.step();
-      hasAttrs = true;
-    }
-    if (!items.isEmpty()) {
-      items.step();
-      if (hasAttrs && items.isEmpty()) {
-        if (inMarkup) {
-          if (item.isRecord || typeof item === 'string') this.writeValue(item, inMarkup);
-          else {
-            this.builder.append(123/*'{'*/);
-            this.writeItem(item);
-            this.builder.append(125/*'}'*/);
-          }
-        }
-        else if (item.isRecord || item.isSlot) {
-          this.builder.append(123/*'{'*/);
-          this.writeItem(item);
-          this.builder.append(125/*'}'*/);
-        }
-        else {
-          this.builder.append(32/*' '*/);
-          this.writeValue(item);
-        }
+    this.builder.append(123/*'{'*/);
+    this.builder.append(125/*'}'*/);
+  }
+};
+ReconWriter.prototype.writeItems = function (record, inBlock, inMarkup) {
+  var items = record.iterator();
+  var inBraces = false;
+  var inBrackets = false;
+  var first = true;
+  while (!items.isEmpty()) {
+    var item = items.head();
+    items.step();
+    if (inBrackets && item.isAttr) {
+      if (inBraces) {
+        this.builder.append(125/*'}'*/);
+        inBraces = false;
       }
-      else if (!items.isEmpty() && items.isAllAttrs()) {
-        if (item.isRecord || item.isSlot) {
+      this.builder.append(93/*']'*/);
+      inBrackets = false;
+    }
+    if (item.isAttr) {
+      if (inBraces) {
+        this.builder.append(125/*'}'*/);
+        inBraces = false;
+      }
+      else if (inBrackets) {
+        this.builder.append(93/*']'*/);
+        inBrackets = false;
+      }
+      this.writeAttr(item);
+      first = false;
+    }
+    else if (inBrackets && typeof item === 'string') {
+      if (inBraces) {
+        this.builder.append(125/*'}'*/);
+        inBraces = false;
+      }
+      this.writeMarkupText(item);
+    }
+    else if (inBraces) {
+      if (!first) this.builder.append(44/*','*/);
+      else first = false;
+      this.writeItem(item);
+    }
+    else if (inBrackets) {
+      if (item.isRecord && item.isMarkupSafe()) {
+        this.writeItems(item, false, true);
+        if (!items.isEmpty() && typeof items.head() === 'string') {
+          this.writeMarkupText(items.head());
+          items.step();
+        }
+        else if (!items.isEmpty() && !items.head().isAttr) {
           this.builder.append(123/*'{'*/);
-          this.writeItem(item);
-          this.builder.append(125/*'}'*/);
+          inBraces = true;
+          first = true;
         }
         else {
-          if (hasAttrs) this.builder.append(32/*' '*/);
-          this.writeValue(item);
+          this.builder.append(93/*']'*/);
+          inBrackets = false;
         }
       }
       else {
         this.builder.append(123/*'{'*/);
         this.writeItem(item);
-        while (!items.isEmpty() && ((item = items.head(), !item.isAttr) || !items.isAllAttrs)) {
-          this.builder.append(44/*','*/);
-          this.writeItem(item);
-          items.step();
-        }
-        this.builder.append(125/*'}'*/);
-      }
-      while (!items.isEmpty()) this.writeAttr(items.next());
-    }
-    else if (!hasAttrs) {
-      this.builder.append(123/*'{'*/);
-      this.builder.append(125/*'}'*/);
-    }
-  }
-};
-ReconWriter.prototype.writeMarkup = function (record) {
-  var items = record.iterator();
-  var item;
-  var hasAttrs = false;
-  while (!items.isEmpty() && (item = items.head(), item.isAttr)) {
-    this.writeAttr(item);
-    items.step();
-    hasAttrs = true;
-  }
-  this.builder.append(91/*'['*/);
-  while (!items.isEmpty()) {
-    item = items.head();
-    if (typeof item === 'string') {
-      var cs = new StringIterator(item);
-      while (!cs.isEmpty()) {
-        var c = cs.head();
-        switch (c) {
-          case 64/*'@'*/:
-          case 91/*'['*/:
-          case 92/*'\\'*/:
-          case 93/*']'*/:
-          case 123/*'{'*/:
-          case 125/*'}'*/: this.builder.append(92/*'\\'*/); this.builder.append(c); break;
-          default: this.builder.append(c);
-        }
-        cs.step();
+        inBraces = true;
+        first = false;
       }
     }
-    else if (item.isRecord) this.writeRecord(item, true);
+    else if (typeof item === 'string' &&
+        !items.isEmpty() && !items.head().isField &&
+        typeof items.head() !== 'string' && typeof items.head() !== 'boolean') {
+      this.builder.append(91/*'['*/);
+      this.writeMarkupText(item);
+      inBrackets = true;
+    }
+    else if (inBlock && !inBraces) {
+      if (!first) this.builder.append(44/*','*/);
+      else first = false;
+      this.writeItem(item);
+    }
+    else if (inMarkup && typeof item === 'string' && items.isEmpty()) {
+      this.builder.append(91/*'['*/);
+      this.writeMarkupText(item);
+      this.builder.append(93/*']'*/);
+    }
+    else if (!inMarkup && !item.isField && !item.isRecord &&
+            (!first && items.isEmpty() || !items.isEmpty() && items.head().isAttr)) {
+      if (!first && (typeof item === 'string' && this.isIdent(item) ||
+                     typeof item === 'number' ||
+                     typeof item === 'boolean'))
+        this.builder.append(32/*' '*/);
+      this.writeValue(item);
+    }
     else {
       this.builder.append(123/*'{'*/);
       this.writeItem(item);
-      this.builder.append(125/*'}'*/);
+      inBraces = true;
+      first = false;
     }
-    items.step();
   }
-  this.builder.append(93/*']'*/);
+  if (inBraces) this.builder.append(125/*'}'*/);
+  else if (inBrackets) this.builder.append(93/*']'*/);
 };
-ReconWriter.prototype.writeText = function (text, inMarkup) {
-  function isIdent() {
-    var cs = new StringIterator(text);
-    if (cs.isEmpty() || !isNameStartChar(cs.head())) return false;
-    cs.step();
-    while (!cs.isEmpty() && isNameChar(cs.head())) cs.step();
-    return cs.isEmpty();
-  }
-  if (inMarkup) this.writeTextMarkup(text);
-  else if (isIdent()) this.writeIdent(text);
+ReconWriter.prototype.isIdent = function (text) {
+  var cs = new StringIterator(text);
+  if (cs.isEmpty() || !isNameStartChar(cs.head())) return false;
+  cs.step();
+  while (!cs.isEmpty() && isNameChar(cs.head())) cs.step();
+  return cs.isEmpty();
+};
+ReconWriter.prototype.writeText = function (text) {
+  if (this.isIdent(text)) this.writeIdent(text);
   else this.writeString(text);
+};
+ReconWriter.prototype.writeIdent = function (ident) {
+  this.builder.appendString(ident);
 };
 ReconWriter.prototype.writeString = function (string) {
   var cs = new StringIterator(string);
@@ -1833,12 +1806,8 @@ ReconWriter.prototype.writeString = function (string) {
   }
   this.builder.append(34/*'"'*/);
 };
-ReconWriter.prototype.writeIdent = function (ident) {
-  this.builder.appendString(ident);
-};
-ReconWriter.prototype.writeTextMarkup = function (text) {
+ReconWriter.prototype.writeMarkupText = function (text) {
   var cs = new StringIterator(text);
-  this.builder.append(91/*'['*/);
   while (!cs.isEmpty()) {
     var c = cs.head();
     switch (c) {
@@ -1852,7 +1821,6 @@ ReconWriter.prototype.writeTextMarkup = function (text) {
     }
     cs.step();
   }
-  this.builder.append(93/*']'*/);
 };
 ReconWriter.prototype.writeNumber = function (number) {
   this.builder.appendString(number.toString());

@@ -24,10 +24,12 @@ assert.same = function (x, y) {
 describe('Recon coercion', function () {
   it('should coerce undefined values', function () {
     assert.same(recon(), absent);
+    assert.same(recon(undefined), absent);
   });
 
   it('should coerce null values', function () {
     assert.same(recon(null), extant);
+    assert.same(recon([null]), recon([extant]));
   });
 
   it('should coerce empty objects', function () {
@@ -134,18 +136,6 @@ describe('Recon records', function () {
     assert.equal(empty().size, 0);
     assert.equal(recon(1, 2).size, 2);
     assert.equal(recon(1, 2, 3).size, 3);
-  });
-
-  it('should know if they have prefix attributes', function () {
-    assert(recon(attr('x')).hasPrefixAttrs());
-    assert(recon(attr('x'), true).hasPrefixAttrs());
-    assert(!recon(1, 2).hasPrefixAttrs());
-  });
-
-  it('should know if they have postfix attributes', function () {
-    assert(recon(attr('a')).hasPostfixAttrs());
-    assert(recon(true, attr('a')).hasPostfixAttrs());
-    assert(!recon(1, 2).hasPostfixAttrs());
   });
 
   it('should know which keys they contain', function () {
@@ -544,49 +534,49 @@ describe('Recon parser', function () {
       attr('test', recon(slot('name', 'parse'), slot('pending', false)))));
   });
 
-  it('should parse attributed empty records', function () {
+  it('should parse prefix attributed empty records', function () {
     assert.same(parse('@hello {}'), recon(attr('hello')));
     assert.same(parse('@hello() {}'), recon(attr('hello')));
     assert.same(parse('@hello("world") {}'), recon(attr('hello', 'world')));
     assert.same(parse('@hello(name: "world") {}'), recon(attr('hello', recon(slot('name', 'world')))));
   });
 
-  it('should parse attributed non-empty records', function () {
+  it('should parse prefix attributed non-empty records', function () {
     assert.same(parse('@hello { {}, [] }'), recon(attr('hello'), empty(), empty()));
     assert.same(parse('@hello() { "world", 42 }'), recon(attr('hello'), 'world', 42));
     assert.same(parse('@hello(name: "world") { number: 42, true }'), recon(
       attr('hello', recon(slot('name', 'world'))), slot('number', 42), true));
   });
 
-  it('should parse attributed empty markup', function () {
+  it('should parse prefix attributed empty markup', function () {
     assert.same(parse('@hello []'), recon(attr('hello')));
     assert.same(parse('@hello() []'), recon(attr('hello')));
     assert.same(parse('@hello("world") []'), recon(attr('hello', 'world')));
     assert.same(parse('@hello(name: "world") []'), recon(attr('hello', recon(slot('name', 'world')))));
   });
 
-  it('should parse attributed empty strings', function () {
+  it('should parse prefix attributed empty strings', function () {
     assert.same(parse('@hello ""'), recon(attr('hello'), ''));
     assert.same(parse('@hello() ""'), recon(attr('hello'), ''));
     assert.same(parse('@hello("world") ""'), recon(attr('hello', 'world'), ''));
     assert.same(parse('@hello(name: "world") ""'), recon(attr('hello', recon(slot('name', 'world'))), ''));
   });
 
-  it('should parse attributed non-empty strings', function () {
+  it('should parse prefix attributed non-empty strings', function () {
     assert.same(parse('@hello "test"'), recon(attr('hello'), 'test'));
     assert.same(parse('@hello() "test"'), recon(attr('hello'), 'test'));
     assert.same(parse('@hello("world") "test"'), recon(attr('hello', 'world'), 'test'));
     assert.same(parse('@hello(name: "world") "test"'), recon(attr('hello', recon(slot('name', 'world'))), 'test'));
   });
 
-  it('should parse attributed empty data', function () {
+  it('should parse prefix attributed empty data', function () {
     assert.same(parse('@hello %'), recon(attr('hello'), base64()));
     assert.same(parse('@hello() %'), recon(attr('hello'), base64()));
     assert.same(parse('@hello("world") %'), recon(attr('hello', 'world'), base64()));
     assert.same(parse('@hello(name: "world") %'), recon(attr('hello', recon(slot('name', 'world'))), base64()));
   });
 
-  it('should parse attributed non-empty data', function () {
+  it('should parse prefix attributed non-empty data', function () {
     assert.same(parse('@hello %AA=='), recon(attr('hello'), base64('AA==')));
     assert.same(parse('@hello() %AAA='), recon(attr('hello'), base64('AAA=')));
     assert.same(parse('@hello("world") %AAAA'), recon(attr('hello', 'world'), base64('AAAA')));
@@ -594,14 +584,14 @@ describe('Recon parser', function () {
       attr('hello', recon(slot('name', 'world'))), base64('ABCDabcd12+/')));
   });
 
-  it('should parse attributed numbers', function () {
+  it('should parse prefix attributed numbers', function () {
     assert.same(parse('@hello 42'), recon(attr('hello'), 42));
     assert.same(parse('@hello() -42'), recon(attr('hello'), -42));
     assert.same(parse('@hello("world") 42.0'), recon(attr('hello', 'world'), 42.0));
     assert.same(parse('@hello(name: "world") -42.0'), recon(attr('hello', recon(slot('name', 'world'))), -42.0));
   });
 
-  it('should parse attributed booleans', function () {
+  it('should parse prefix attributed booleans', function () {
     assert.same(parse('@hello true'), recon(attr('hello'), true));
     assert.same(parse('@hello() false'), recon(attr('hello'), false));
     assert.same(parse('@hello("world") true'), recon(attr('hello', 'world'), true));
@@ -672,6 +662,87 @@ describe('Recon parser', function () {
     assert.same(parse('false @signed(by: "me")'), recon(false, attr('signed', recon(slot('by', 'me')))));
   });
 
+  it('should parse infix attributed empty records', function () {
+    assert.same(parse('{}@hello{}'), recon(attr('hello')));
+    assert.same(parse('{}@hello(){}'), recon(attr('hello')));
+    assert.same(parse('{}@hello("world"){}'), recon(attr('hello', 'world')));
+    assert.same(parse('{}@hello(name:"world"){}'), recon(attr('hello', recon(slot('name', 'world')))));
+  });
+
+  it('should parse infix attributed non-empty records', function () {
+    assert.same(parse('{{}}@hello{[]}'), recon(empty(), attr('hello'), empty()));
+    assert.same(parse('{42}@hello(){"world"}'), recon(42, attr('hello'), 'world'));
+    assert.same(parse('{number:42}@hello(name:"world"){true}'),
+      recon(slot('number', 42), attr('hello', recon(slot('name', 'world'))), true));
+  });
+
+  it('should parse infix attributed empty markup"', function () {
+    assert.same(parse('[]@hello[]'), recon(attr('hello')));
+    assert.same(parse('[]@hello()[]'), recon(attr('hello')));
+    assert.same(parse('[]@hello("world")[]'), recon(attr('hello', 'world')));
+    assert.same(parse('[]@hello(name: "world")[]'),
+      recon(attr('hello', recon(slot('name', 'world')))));
+  });
+
+  it('should parse infix attributed non-empty markup', function () {
+    assert.same(parse(' [a]@hello[test] '), recon('a', attr('hello'), 'test'));
+    assert.same(parse(' [a]@hello()[test] '), recon('a', attr('hello'), 'test'));
+    assert.same(parse(' [a]@hello("world")[test] '),
+      recon('a', attr('hello', 'world'), 'test'));
+    assert.same(parse(' [a]@hello(name:"world")[test] '),
+      recon('a', attr('hello', recon(slot('name', 'world'))), 'test'));
+  });
+
+  it('should parse infix attributed empty strings', function () {
+    assert.same(parse(' ""@hello"" '), recon('', attr('hello'), ''));
+    assert.same(parse(' ""@hello()"" '), recon('', attr('hello'), ''));
+    assert.same(parse(' ""@hello("world")"" '), recon('', attr('hello', 'world'), ''));
+    assert.same(parse(' ""@hello(name:"world")"" '),
+      recon('', attr('hello', recon(slot('name', 'world'))), ''));
+  });
+
+  it('should parse infix attributed non-empty strings', function () {
+    assert.same(parse(' "a"@hello"test" '), recon('a', attr('hello'), 'test'));
+    assert.same(parse(' "a"@hello()"test" '), recon('a', attr('hello'), 'test'));
+    assert.same(parse(' "a"@hello("world")"test" '), recon('a', attr('hello', 'world'), 'test'));
+    assert.same(parse(' "a"@hello(name:"world")"test" '),
+      recon('a', attr('hello', recon(slot('name', 'world'))), 'test'));
+  });
+
+  it('should parse infix attributed empty data', function () {
+    assert.same(parse('%@hello%'), recon(base64(), attr('hello'), base64()));
+    assert.same(parse('%@hello()%'), recon(base64(), attr('hello'), base64()));
+    assert.same(parse('%@hello("world")%'), recon(base64(), attr('hello', 'world'), base64()));
+    assert.same(parse('%@hello(name:"world")%'),
+      recon(base64(), attr('hello', recon(slot('name', 'world'))), base64()));
+  });
+
+  it('should parse infix attributed non-empty data', function () {
+    assert.same(parse('%AA==@hello%BB=='), recon(base64('AA=='), attr('hello'), base64('BB==')));
+    assert.same(parse('%AAA=@hello()%BBB='), recon(base64('AAA='), attr('hello'), base64('BBB=')));
+    assert.same(parse('%AAAA@hello("world")%BBBB'),
+      recon(base64('AAAA'), attr('hello', 'world'), base64('BBBB')));
+    assert.same(parse('%ABCDabcd12+/@hello(name:"world")%/+21dcbaDCBA'),
+      recon(base64('ABCDabcd12+/'), attr('hello', recon(slot('name', 'world'))), base64('/+21dcbaDCBA')));
+  });
+
+  it('should parse infix attributed numbers', function () {
+    assert.same(parse('2@hello 42'), recon(2, attr('hello'), 42));
+    assert.same(parse('-2@hello()-42'), recon(-2, attr('hello'), -42));
+    assert.same(parse('2.00@hello("world")42.0'),
+      recon(2.0, attr('hello', 'world'), 42.0));
+    assert.same(parse('-2.0@hello(name:"world")-42.0'),
+      recon(-2.0, attr('hello', recon(slot('name', 'world'))), -42.0));
+  });
+
+  it('should parse infix attributed booleans', function () {
+    assert.same(parse('true@hello true'), recon(true, attr('hello'), true));
+    assert.same(parse('false@hello()false'), recon(false, attr('hello'), false));
+    assert.same(parse('true@hello("world")true'), recon(true, attr('hello', 'world'), true));
+    assert.same(parse('false@hello(name:"world")false'),
+      recon(false, attr('hello', recon(slot('name', 'world'))), false));
+  });
+
   it('should parse plain markup', function () {
     assert.same(parse('[test]'), recon(['test']));
   });
@@ -696,19 +767,30 @@ describe('Recon parser', function () {
     assert.same(parse('[{{1, 2, 3}}.]'), recon(recon(1, 2, 3), '.'));
   });
 
-  it('should parse markup with embedded attributes', function () {
+  it('should parse markup with embedded single extant attributes', function () {
     assert.same(parse('[A: @answer.]'), recon('A: ', recon(attr('answer')), '.'));
     assert.same(parse('[A: @answer().]'), recon('A: ', recon(attr('answer')), '.'));
     assert.same(parse('[A: @answer("secret").]'), recon('A: ', recon(attr('answer', 'secret')), '.'));
     assert.same(parse('[A: @answer(number: 42, true).]'), recon(
       'A: ', recon(attr('answer', recon(slot('number', 42), true))), '.'));
-    assert.same(parse('[@numbers {1, 2, 3}.]'), recon(recon(attr('numbers'), 1, 2, 3), '.'));
-    assert.same(parse('[@numbers {{1, 2, 3}}.]'), recon(recon(attr('numbers'), recon(1, 2, 3)), '.'));
+    assert.same(parse('[@numbers{1, 2, 3}.]'), recon(recon(attr('numbers'), 1, 2, 3), '.'));
+    assert.same(parse('[@numbers{{1, 2, 3}}.]'), recon(recon(attr('numbers'), recon(1, 2, 3)), '.'));
+  });
+
+  it('should parse markup with embedded sequential extant attributes', function () {
+    assert.same(parse('[A: @good @answer.]'),
+      recon('A: ', recon(attr('good')), ' ', recon(attr('answer')), '.'));
+    assert.same(parse('[A: @good@answer.]'),
+      recon('A: ', recon(attr('good')), recon(attr('answer')), '.'));
+    assert.same(parse('[A: @good() @answer().]'),
+      recon('A: ', recon(attr('good')), ' ', recon(attr('answer')), '.'));
+    assert.same(parse('[A: @good()@answer().]'),
+      recon('A: ', recon(attr('good')), recon(attr('answer')), '.'));
   });
 
   it('should parse markup with embedded attributed markup', function () {
     assert.same(parse('[Hello, @em[world]!]'), recon('Hello, ', recon(attr('em'), 'world'), '!'));
-    assert.same(parse('[Hello, @em() [world]!]'), recon('Hello, ', recon(attr('em'), 'world'), '!'));
+    assert.same(parse('[Hello, @em()[world]!]'), recon('Hello, ', recon(attr('em'), 'world'), '!'));
     assert.same(parse('[Hello, @em("italic")[world]!]'), recon(
       'Hello, ', recon(attr('em', 'italic'), 'world'), '!'));
     assert.same(parse('[Hello, @em(class:"subject",style:"italic")[world]!]'), recon(
@@ -717,9 +799,9 @@ describe('Recon parser', function () {
 
   it('should parse markup with embedded attributed values', function () {
     assert.same(parse('[A: @answer{42}.]'), recon('A: ', recon(attr('answer'), 42), '.'));
-    assert.same(parse('[A: @answer() {42}.]'), recon('A: ', recon(attr('answer'), 42), '.'));
-    assert.same(parse('[A: @answer("secret") {42}.]'), recon('A: ', recon(attr('answer', 'secret'), 42), '.'));
-    assert.same(parse('[A: @answer(number: 42, "secret") {true}.]'), recon(
+    assert.same(parse('[A: @answer(){42}.]'), recon('A: ', recon(attr('answer'), 42), '.'));
+    assert.same(parse('[A: @answer("secret"){42}.]'), recon('A: ', recon(attr('answer', 'secret'), 42), '.'));
+    assert.same(parse('[A: @answer(number: 42, "secret"){true}.]'), recon(
       'A: ', recon(attr('answer', recon(slot('number', 42), 'secret')), true), '.'));
   });
 });
@@ -730,8 +812,12 @@ describe('Recon serializer', function () {
   });
 
   it('should stringify empty records', function () {
-    assert.equal(stringify(empty()), '');
+    assert.equal(stringify(empty()), '{}');
     assert.equal(stringify(slot('test', empty())), 'test:{}');
+  });
+
+  it('should stringify unary records', function () {
+    assert.equal(recon([1]).toString(), '{1}');
   });
 
   it('should stringify non-empty records', function () {
@@ -786,7 +872,7 @@ describe('Recon serializer', function () {
   });
 
   it('should stringify extant attributes with single parameters', function () {
-    assert.equal(stringify(attr('answer', empty())), '@answer()');
+    assert.equal(stringify(attr('answer', empty())), '@answer({})');
     assert.equal(stringify(attr('answer', '42')), '@answer("42")');
     assert.equal(stringify(attr('answer', 42)), '@answer(42)');
     assert.equal(stringify(attr('answer', true)), '@answer(true)');
@@ -818,32 +904,32 @@ describe('Recon serializer', function () {
     assert.equal(stringify(slot('blank')), 'blank:');
   });
 
-  it('should stringify attributed empty records', function () {
+  it('should stringify prefix attributed empty records', function () {
     assert.equal(stringify(attr('hello'), empty()), '@hello{{}}');
     assert.equal(stringify(slot('test', recon(attr('hello'), empty()))), 'test:@hello{{}}');
   });
 
-  it('should stringify attributed empty text', function () {
-    assert.equal(stringify(attr('hello'), ''), '@hello ""');
-    assert.equal(stringify(slot('test', recon(attr('hello'), ''))), 'test:@hello ""');
+  it('should stringify prefix attributed empty text', function () {
+    assert.equal(stringify(attr('hello'), ''), '@hello""');
+    assert.equal(stringify(slot('test', recon(attr('hello'), ''))), 'test:@hello""');
   });
 
-  it('should stringify attributed non-empty text', function () {
-    assert.equal(stringify(attr('hello'), 'world!'), '@hello "world!"');
-    assert.equal(stringify(slot('test', recon(attr('hello'), 'world!'))), 'test:@hello "world!"');
+  it('should stringify prefix attributed non-empty text', function () {
+    assert.equal(stringify(attr('hello'), 'world!'), '@hello"world!"');
+    assert.equal(stringify(slot('test', recon(attr('hello'), 'world!'))), 'test:@hello"world!"');
   });
 
-  it('should stringify attributed numbers', function () {
+  it('should stringify prefix attributed numbers', function () {
     assert.equal(stringify(attr('answer'), 42), '@answer 42');
     assert.equal(stringify(slot('test', recon(attr('answer'), 42))), 'test:@answer 42');
   });
 
-  it('should stringify attributed booleans', function () {
+  it('should stringify prefix attributed booleans', function () {
     assert.equal(stringify(attr('answer'), true), '@answer true');
     assert.equal(stringify(slot('test', recon(attr('answer'), true))), 'test:@answer true');
   });
 
-  it('should stringify attributed slots', function () {
+  it('should stringify prefix attributed slots', function () {
     assert.equal(stringify(attr('hello'), slot('subject', 'world!')), '@hello{subject:\"world!\"}');
     assert.equal(
       stringify(slot('test', recon(attr('hello'), slot('subject', 'world!')))),
@@ -896,6 +982,14 @@ describe('Recon serializer', function () {
       'test:@a@b false@x@y');
   });
 
+  it('should serialize single values with interspersed attributes', function () {
+    assert.equal(stringify(attr('a'), 1, attr('b'), 2), '@a 1@b 2');
+  });
+
+  it('should serialize single values with interspersed attribute groups', function () {
+    assert.equal(stringify(attr('a'), attr('b'), 1, attr('c'), attr('d'), 2), '@a@b 1@c@d 2');
+  });
+
   it('should stringify multiple items with multiple postfix attributes', function () {
     assert.equal(stringify(1, 2, attr('x'), attr('y')), '{1,2}@x@y');
     assert.equal(stringify(slot('test', recon(1, 2, attr('x'), attr('y')))), 'test:{1,2}@x@y');
@@ -906,6 +1000,14 @@ describe('Recon serializer', function () {
     assert.equal(
       stringify(slot('test', recon(attr('a'), attr('b'), 1, 2, attr('x'), attr('y')))),
       'test:@a@b{1,2}@x@y');
+  });
+
+  it('should serialize multiple items with interspersed attributes', function () {
+    assert.equal(stringify(attr('a'), 1, 2, attr('b'), 3, 4), '@a{1,2}@b{3,4}');
+  });
+
+  it('should serialize multiple items with interspersed attribute groups', function () {
+    assert.equal(stringify(attr('a'), attr('b'), 1, 2, attr('c'), attr('d'), 3, 4), '@a@b{1,2}@c@d{3,4}');
   });
 
   it('should stringify markup', function () {
@@ -923,11 +1025,25 @@ describe('Recon serializer', function () {
       'msg:[Hello, @em[world]!]');
   });
 
-  it('should stringify markup with structure', function () {
-    assert.equal(stringify('A: ', 42, '!'), '[A: {42}!]');
+  it('should stringify markup with escapes', function () {
     assert.equal(
-      stringify(attr('greeting'), 'Hello, ', recon(attr('em'), 'world'), '!'),
-      '@greeting[Hello, @em[world]!]');
+      stringify('Escape: ', recon(attr('br')), ' \\@{}[]'),
+      '[Escape: @br \\\\\\@\\{\\}\\[\\]]');
+    assert.equal(
+      stringify('Escape: ', recon(attr('span'), '\\@{}[]'), '!'),
+      '[Escape: @span[\\\\\\@\\{\\}\\[\\]]!]');
+  });
+
+  it('should stringify nested markup', function () {
+    assert.equal(
+      stringify('X ', recon(attr('p'), 'Y ', recon(attr('q'), 'Z'), '.'), '.'),
+      '[X @p[Y @q[Z].].]');
+  });
+
+  it('should stringify nested markup with non-prefix attributes', function () {
+    assert.equal(
+      stringify('X ', recon(attr('p'), 'Y.', attr('q')), '.'),
+      '[X {@p"Y."@q}.]');
   });
 
   it('should stringify markup in attribute parameters', function () {
@@ -936,13 +1052,41 @@ describe('Recon serializer', function () {
       '@msg([Hello, @em[world]!])');
   });
 
-  it('should stringify markup with escapes', function () {
+  it('should stringify markup-embedded values', function () {
+    assert.equal(stringify('Hello, ', 6, '!'), '[Hello, {6}!]');
+    assert.equal(stringify('Hello, ', 6, 7, '!'), '[Hello, {6,7}!]');
     assert.equal(
-      stringify('Escape: ', recon(attr('br')), ' \\@{}[]'),
-      '[Escape: @br \\\\\\@\\{\\}\\[\\]]');
+      stringify(attr('greeting'), 'Hello, ', recon(attr('em'), 'world'), '!'),
+      '@greeting[Hello, @em[world]!]');
+  });
+
+  it('should stringify markup-embedded values with subsequent attributes', function () {
     assert.equal(
-      stringify('Escape: ', recon(attr('span'), '\\@{}[]'), '!'),
-      '[Escape: @span[\\\\\\@\\{\\}\\[\\]]!]');
+      stringify('Wait ', 1, attr('second'), ' longer', recon(attr('please'))),
+      '[Wait {1}]@second[ longer@please]');
+    assert.equal(
+      stringify('Wait ', 1, 2, attr('second'), ' longer', recon(attr('please'))),
+      '[Wait {1,2}]@second[ longer@please]');
+  });
+
+  it('should stringify markup-embedded records', function () {
+    assert.equal(stringify('Hello, ', empty(), '!'), '[Hello, {{}}!]');
+    assert.equal(stringify('Hello, ', recon([1]), '!'), '[Hello, {{1}}!]');
+    assert.equal(stringify('Hello, ', recon(1, 2), '!'), '[Hello, {{1,2}}!]');
+  });
+
+  it('should stringify markup-embedded attributed values', function () {
+    assert.equal(stringify('Hello, ', recon(attr('number'), 6), '!'), '[Hello, @number{6}!]');
+  });
+
+  it('should stringify markup-embedded attributed records', function () {
+    assert.equal(
+      stringify('Hello, ', recon(attr('choice'), 'Earth', 'Mars'), '!'),
+      '[Hello, @choice{Earth,Mars}!]');
+  });
+
+  it('should stringify markup-embedded records with non-prefix attributes', function () {
+    assert.equal(stringify('Hello, ', recon(1, attr('second')), '!'), '[Hello, {1@second}!]');
   });
 
   it('should stringify naked attributes', function () {
