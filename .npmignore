@@ -1,0 +1,8 @@
+.jscsrc
+.jshintrc
+.npmignore
+.travis.yml
+gulpfile.js
+recon-test.js
+recon.min.js
+recon.min.js.map

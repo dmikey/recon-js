@@ -219,6 +219,61 @@ to the previous example.
 { "Goals: ", @select(max:2), " ", {fast,good,cheap}, "." }
 ```
 
+## JavaScript Transcoding
+
+RECON types map to JavaScript types as follows:
+
+| RECON Type | JavaScript Type  |
+|------------|------------------|
+| Test       | String           |
+| Number     | Number           |
+| Data       | Uint8Array       |
+| Field      | Object           |
+| Record     | Array            |
+| Extant     | null             |
+| Absent     | undefined        |
+| true       | true             |
+| false      | false            |
+
+Note that RECON treats `true` and `false` as ordinary text values.  But for
+compatibility with JSON, the RECON JavaScript library decodes `true` and
+`false` as JavaScript boolean values.
+
+### JavaScript Records
+
+Since the order of items in RECON records is significant, records transcode as
+JavaScript arrays.  Fields within a record transcode as a JavaScript object
+with a single key-value pair.  Attrinbutes preserve the `@` prefix in their
+names to distinguish them from other fields.
+
+For convenience, the RECON decoder also defines a non-enumerable object member
+for each record field decoded into a JavaScript object.  This enables field
+access with subscript notation, without causing duplicate values to appear
+when invoking `JSON.stringify()` on a decoded RECON object.  Note that updating
+a JavaScript object member with subscript notation will leave its corresponding
+array element in an inconsistent state.  This shouldn't be an issue in cases
+where the application doesn't care about the order of RECON-decoded JavaScript
+objects.  The RECON JavaScript library takes care to use the mutated versions
+of object members when encoding a JavaScript object as RECON.  The library also
+provides a `recon.set(object, key, value)` function that will update both the
+named object member and the object's ordered field member, if present.
+
+### JSON Examples
+
+```
+RECON: {1, 2, 3}
+JSON:  [1, 2, 3]
+
+RECON: { subject: "Greetings", "Hello, Jovians!" }
+JSON:  [{"subject": "Greetings"}, "Hello, Jovians!"]
+
+RECON: @event("onClick")
+JSON:  [{"@event": "onClick"}]
+
+RECON: [Hello, @em[world]!]
+JSON:  ["Hello, ", [{"@em": null}, "world"], "!"]
+```
+
 ## JavaScript Library
 
 The RECON JavaScript library has no dependencies, and can run in any standard
@@ -235,44 +290,12 @@ var recon = require('recon-js');
 var record = recon.parse('[Welcome @a(href:"index.html")@em[home].]');
 ```
 
-### Module API
+### JavaScript API
 
-#### recon(values)
+#### recon(value)
 
-Coerces one or more JavaScript values to a RECON value.  `string`, `number`,
-`boolean`, and `Uint8Array` and valid RECON values pass through unchanged.
-`object` and `Array` get recursively transformed to `recon.Record` values.
-
-```js
-recon(1, 2, 3); // {1,2,3}
-recon({from: 'me', to: 'you'}); // '{from:me,to:you}'
-recon('Hello, ', recon(recon.attr('em'), 'world'), '!'); // [Hello, @em[world]!]
-recon({'@':{event: 'onClick'}, x: 23, y: 42}); // @event(onClick){x:23,y:42}
-```
-
-#### recon.attr(key, value)
-
-Coerces `key` and `value` and creates a `recon.Attr`.
-
-#### recon.slot(key, value)
-
-Coerces `key` and `value` and creates a `recon.Slot`.
-
-#### recon.extant
-
-Returns the singleton Extant value.
-
-#### recon.absent
-
-Returns the singleton Absent value.
-
-#### recon.empty()
-
-Returns an empty record.
-
-#### recon.base64(string)
-
-Base64-decodes a `string` into a `Uint8Array`.
+Normalizes a RECON value, ensuring that a record's array representation
+matches its object representation.
 
 #### recon.parse(string)
 
@@ -282,125 +305,26 @@ Parses a string for a RECON value.
 
 Serializes a JavaScript value as a RECON string.
 
-#### recon.objectify(value)
+#### recon.base64(string)
 
-Transforms a RECON value to an approximate JSON object.  Note that JSON cannot
-faithfully represent all RECON values.
+Base64-decodes a `string` into a `Uint8Array`.
 
-#### recon.builder()
+#### recon.get(key, value)
 
-Returns a RECON builder object.  Append attributes with `.attr(key, value)`,
-slots with `.slot(key, value)`, and other items with `.item(value)`.  All input
-keys and values will get coerced to RECON values.  Retrieve the built result
-with `.state()`.
+Returns the record value associated with a key object.
 
-```js
-recon.builder().attr('event', 'onClick').item('window').state(); // '@event(onClick) window'
-```
+#### recon.set(record, key, value)
 
-#### recon.compare(a, b)
+Updates a record field, keeping its array representation consistent with its
+object representation.
+
+#### recon.concat(x, y)
+
+Concatenates two RECON valuesinto a single, flattened record.
+
+#### recon.equal(x, y)
 
 Compares two RECON values for equality.
-
-### Record API
-
-```js
-var record = recon.parse('@subject("Re: Greetings") "Hi Martians!"');
-```
-
-#### record(key)
-
-Lookups up an attribute or slot value by `key`; if `record` doesn't contain
-`key`, and `key` is an integer, returns the item at index `key`.
-
-```js
-record('subject'); // 'Re: Greetings'
-record(1); // 'Hi Martians!'
-```
-
-#### record.size
-
-Returns the number of items in `record`.
-
-#### record.isEmpty()
-
-Returns `true` if `record` has no items.
-
-#### record.head()
-
-Returns the first item in `record`, or `absent` if `record` is empty.
-
-#### record.tail()
-
-Returns all but the first item in `record`.
-
-#### record.body()
-
-Returns all but the last item in `record`.
-
-#### record.foot()
-
-Returns the last item in `record`, or `absent` if `record` is empty.
-
-#### record.target()
-
-Returns the first non-field value in `record`.
-
-#### record.concat(values)
-
-Returns a copy of `record` with coerced `values` appended.  If `values` is a
-single record argument, its items get appended.
-
-```js
-recon(1, 2).concat(3, 4) // '1,2,3,4'
-recon(1, 2).concat(recon(3, 4)) // '1,2,3,4'
-```
-
-#### record.forEach(function)
-
-Calls `function` with each item in `record`.
-
-```js
-record.forEach(function (item) { console.log(item.toString()); });
-// @subject("Re: Greetings")
-// Hi Martians!
-```
-
-#### record.iterator()
-
-Returns an iterator that steps through each item in `record`.
-
-```js
-var items = record.iterator();
-while (!items.isEmpty()) {
-  var item = items.next();
-  console.log(item.toString());
-}
-```
-
-### Field API
-
-Fields represent keyed items in a record.
-
-#### item.isField
-
-Returns `true` if `item` is either an `attr` or a `slot`.
-
-#### item.isAttr
-
-Returns `true` if `item` is an `attr`.
-
-#### item.isSlot
-
-Returns `true` if `item` is a `slot`.
-
-#### field.key
-
-Returns the `attr` or `slot`'s key.
-
-#### field.value
-
-Returns the `attr` or `slot`'s value.
 
 ## Language Grammar
 
