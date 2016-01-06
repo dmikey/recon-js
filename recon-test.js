@@ -4,6 +4,7 @@
 
 var assert = require('assert');
 var recon = require('./recon.js');
+var pkg = require('./package.json');
 var parse = recon.parse;
 var stringify = recon.stringify;
 var base64 = recon.base64;
@@ -18,7 +19,7 @@ assert.same = function (x, y) {
 };
 
 
-describe('RECON functions', function () {
+describe('RECON library', function () {
   it('should normalize JSON arrays', function () {
     assert.same(recon([1, 2, 3]), [1, 2, 3]);
     assert.same(recon(1, 2, 3), [1, 2, 3]);
@@ -68,11 +69,44 @@ describe('RECON functions', function () {
     assert.equal(record['@z'], false);
   });
 
+  it('should concat two objects', function () {
+    var record = concat({a: 1}, {b: 2});
+    assert.same(record, [{a: 1}, {b: 2}]);
+    assert.equal(record.a, 1);
+    assert.equal(record.b, 2);
+  });
+
+  it('should concat a record and an object', function () {
+    var record = concat([{a: 1}, true], {b: 2});
+    assert.same(record, [{a: 1}, true, {b: 2}]);
+    assert.equal(record.a, 1);
+    assert.equal(record.b, 2);
+  });
+
+  it('should concat an object and a record', function () {
+    var record = concat({a: 1}, [true, {b: 2}]);
+    assert.same(record, [{a: 1}, true, {b: 2}]);
+    assert.equal(record.a, 1);
+    assert.equal(record.b, 2);
+  });
+
   it('should concat two records', function () {
     var record = concat([{'@a': true}, 2], [3, {'@z': false}]);
     assert.same(record, [{'@a': true}, 2, 3, {'@z': false}]);
     assert.equal(record['@a'], true);
     assert.equal(record['@z'], false);
+  });
+
+  it('should concat undefined values', function () {
+    assert.same(concat(undefined, undefined), []);
+    assert.same(concat(1, undefined), [1]);
+    assert.same(concat(undefined, 2), [2]);
+    assert.same(concat([1, 2], undefined), [1, 2]);
+    assert.same(concat(undefined, [3, 4]), [3, 4]);
+  });
+
+  it('should expose its build config', function () {
+    assert.equal(recon.config.version, pkg.version);
   });
 });
 

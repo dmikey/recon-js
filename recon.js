@@ -1,5 +1,7 @@
 'use strict';
 
+var config = require('./config.json');
+
 function parse(string) {
   var input = new StringIterator(string);
   var result = new DocumentParser().run(input);
@@ -111,9 +113,11 @@ function coerceObject(fields) {
 function concat(x, y) {
   var builder = new RecordBuilder();
   if (isRecord(x)) builder.appendRecord(x);
-  else builder.appendItem(x);
+  else if (isObject(x)) builder.appendFields(x);
+  else if (x !== undefined) builder.appendItem(x);
   if (isRecord(y)) builder.appendRecord(y);
-  else builder.appendItem(y);
+  else if (isObject(y)) builder.appendFields(y);
+  else if (y !== undefined) builder.appendItem(y);
   return builder.state();
 }
 
@@ -1822,7 +1826,9 @@ exports = module.exports;
 exports.parse = parse;
 exports.stringify = stringify;
 exports.base64 = base64;
+exports.isRecord = isRecord;
 exports.get = get;
 exports.set = set;
 exports.concat = concat;
 exports.equal = equal;
+exports.config = config;

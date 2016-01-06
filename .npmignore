@@ -2,7 +2,6 @@
 .jshintrc
 .npmignore
 .travis.yml
+coverage
 gulpfile.js
 recon-test.js
-recon.min.js
-recon.min.js.map
