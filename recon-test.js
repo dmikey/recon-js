@@ -8,9 +8,6 @@ var pkg = require('./package.json');
 var parse = recon.parse;
 var stringify = recon.stringify;
 var base64 = recon.base64;
-var get = recon.get;
-var set = recon.set;
-var concat = recon.concat;
 
 assert.same = function (x, y) {
   if (!recon.equal(x, y)) {
@@ -32,77 +29,144 @@ describe('RECON library', function () {
     assert.equal(record.answer, 42);
   });
 
+  it('should return the head value of a record', function () {
+    var record = recon([1, 2]);
+    assert.equal(recon.head(record), 1);
+  });
+
+  it('should return the head ident keyed slot value of a record', function () {
+    var record = recon([{a: 1}, 2]);
+    assert.equal(recon.head(record), 1);
+  });
+
+  it('should return the head value keyed slot value of a record', function () {
+    var record = recon([{$key: true, $value: 1}, 2]);
+    assert.equal(recon.head(record), 1);
+  });
+
+  it('should return the head attribute value of a record', function () {
+    var record = recon([{'@a': 1}, 2]);
+    assert.equal(recon.head(record), 1);
+  });
+
+  it('should return the head of a value as the value itself', function () {
+    assert.equal(recon.head('test'), 'test');
+    assert.equal(recon.head(42), 42);
+    assert.equal(recon.head(true), true);
+    assert.equal(recon.head(null), null);
+    assert.equal(recon.head(undefined), undefined);
+  });
+
+  it('should return the tail of a record', function () {
+    var record = recon.tail([{a: 1}, {b: 2}, 3, {d: 4}, 5]);
+    assert.same(record, [{b: 2}, 3, {d: 4}, 5]);
+    assert.equal(record.a, undefined);
+    assert.equal(record.b, 2);
+    assert.equal(record.d, 4);
+  });
+
+  it('should return an undefined tail for a value', function () {
+    assert.equal(recon.tail('test'), undefined);
+    assert.equal(recon.tail(42), undefined);
+    assert.equal(recon.tail(true), undefined);
+    assert.equal(recon.tail(null), undefined);
+    assert.equal(recon.tail(undefined), undefined);
+  });
+
+  it('should return the ident tag of a record', function () {
+    var record = recon([{a: 1}, 2]);
+    assert.equal(recon.tag(record), 'a');
+  });
+
+  it('should return the value tag of a record', function () {
+    var record = recon([{$key: true, $value: 1}, 2]);
+    assert.equal(recon.tag(record), true);
+  });
+
+  it('should return the attribute tag of a record', function () {
+    var record = recon([{'@a': 1}, 2]);
+    assert.equal(recon.tag(record), '@a');
+  });
+
+  it('should return an undefined tag for a value', function () {
+    assert.equal(recon.tag('test'), undefined);
+    assert.equal(recon.tag(42), undefined);
+    assert.equal(recon.tag(true), undefined);
+    assert.equal(recon.tag(null), undefined);
+    assert.equal(recon.tag(undefined), undefined);
+  });
+
   it('should set ident keyed record slots', function () {
     var record = [1, {foo: 'bar'}, 3];
-    set(record, 'foo', 'baz');
+    recon.set(record, 'foo', 'baz');
     assert.same(record, [1, {foo: 'baz'}, 3]);
     assert.equal(record.foo, 'baz');
   });
 
   it('should set ident keyed record attributes', function () {
     var record = [1, {'@hello': 'there'}, 3];
-    set(record, '@hello', 'world');
+    recon.set(record, '@hello', 'world');
     assert.same(record, [1, {'@hello': 'world'}, 3]);
     assert.equal(record['@hello'], 'world');
   });
 
   it('should set value keyed record slots', function () {
     var record = [1, {$key: [{'@planet': null}], $value: 'Neptune'}, 3];
-    set(record, [{'@planet': null}], 'Pluto');
+    recon.set(record, [{'@planet': null}], 'Pluto');
     assert.same(record, [1, {$key: [{'@planet': null}], $value: 'Pluto'}, 3]);
-    assert.equal(get(record, [{'@planet': null}]), 'Pluto');
+    assert.equal(recon.get(record, [{'@planet': null}]), 'Pluto');
   });
 
   it('should concat two values', function () {
-    assert.same(concat(1, 2), [1, 2]);
+    assert.same(recon.concat(1, 2), [1, 2]);
   });
 
   it('should concat a record and a value', function () {
-    var record = concat([{'@a': true}, 2], 3);
+    var record = recon.concat([{'@a': true}, 2], 3);
     assert.same(record, [{'@a': true}, 2, 3]);
     assert.equal(record['@a'], true);
   });
 
   it('should concat a value and a record', function () {
-    var record = concat(1, [2, {'@z': false}]);
+    var record = recon.concat(1, [2, {'@z': false}]);
     assert.same(record, [1, 2, {'@z': false}]);
     assert.equal(record['@z'], false);
   });
 
   it('should concat two objects', function () {
-    var record = concat({a: 1}, {b: 2});
+    var record = recon.concat({a: 1}, {b: 2});
     assert.same(record, [{a: 1}, {b: 2}]);
     assert.equal(record.a, 1);
     assert.equal(record.b, 2);
   });
 
   it('should concat a record and an object', function () {
-    var record = concat([{a: 1}, true], {b: 2});
+    var record = recon.concat([{a: 1}, true], {b: 2});
     assert.same(record, [{a: 1}, true, {b: 2}]);
     assert.equal(record.a, 1);
     assert.equal(record.b, 2);
   });
 
   it('should concat an object and a record', function () {
-    var record = concat({a: 1}, [true, {b: 2}]);
+    var record = recon.concat({a: 1}, [true, {b: 2}]);
     assert.same(record, [{a: 1}, true, {b: 2}]);
     assert.equal(record.a, 1);
     assert.equal(record.b, 2);
   });
 
   it('should concat two records', function () {
-    var record = concat([{'@a': true}, 2], [3, {'@z': false}]);
+    var record = recon.concat([{'@a': true}, 2], [3, {'@z': false}]);
     assert.same(record, [{'@a': true}, 2, 3, {'@z': false}]);
     assert.equal(record['@a'], true);
     assert.equal(record['@z'], false);
   });
 
   it('should concat undefined values', function () {
-    assert.same(concat(undefined, undefined), []);
-    assert.same(concat(1, undefined), [1]);
-    assert.same(concat(undefined, 2), [2]);
-    assert.same(concat([1, 2], undefined), [1, 2]);
-    assert.same(concat(undefined, [3, 4]), [3, 4]);
+    assert.same(recon.concat(undefined, undefined), []);
+    assert.same(recon.concat(1, undefined), [1]);
+    assert.same(recon.concat(undefined, 2), [2]);
+    assert.same(recon.concat([1, 2], undefined), [1, 2]);
+    assert.same(recon.concat(undefined, [3, 4]), [3, 4]);
   });
 
   it('should expose its build config', function () {

@@ -31,10 +31,10 @@ var debug = args.debug || devel; // --devel implies --debug
 //
 
 var configFile = './config.json';
-var main = './recon.js'
+var main = './recon.js';
 var scripts = [main];
 var tests = ['./recon-test.js'];
-var sources = scripts.concat(tests)
+var sources = scripts.concat(tests);
 
 //
 // Pipelines
@@ -61,7 +61,6 @@ function builtScripts() {
   generatedConfig();
   validatedSources();
   return browserify({
-      entries: [main],
       standalone: 'recon',
       debug: devel || !debug
     })

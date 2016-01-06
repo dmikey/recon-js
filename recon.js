@@ -66,94 +66,44 @@ function isMarkupSafe(record) {
   return true;
 }
 
-function coerce() {
-  if (arguments.length === 1) return coerceValue(arguments[0]);
-  else if (arguments.length > 1) return coerceRecord(arguments);
-}
-function coerceValue(value) {
-  if (isRecord(value)) return coerceRecord(value);
-  else if (isObject(value)) return coerceObject(value);
+function head(value) {
+  if (isRecord(value)) {
+    var header = value[0];
+    if (isField(header)) {
+      if (header.$key) return header.$value;
+      else return header[Object.keys(header)[0]];
+    }
+    else return header;
+  }
+  else if (isObject(value)) return value[Object.keys(value)[0]];
   else return value;
 }
-function coerceRecord(items) {
-  var record = [];
-  var i, n;
-  for (i = 0, n = items.length; i < n; i += 1) {
-    record.push(items[i]);
-  }
-  var keys = Object.keys(items);
-  for (i = 0, n = keys.length; i < n; i += 1) {
-    var key = keys[i];
-    if (isNaN(parseInt(key))) {
-      var value = record[key];
-      set(record, key, value);
+
+function tail(value) {
+  var i, n, builder;
+  if (isRecord(value)) {
+    builder = new RecordBuilder();
+    for (i = 1, n = value.length; i < n; i += 1) {
+      builder.appendItem(value[i]);
     }
+    return builder.state();
   }
-  return record;
-}
-function coerceObject(fields) {
-  var keys = Object.keys(fields);
-  var n = keys.length;
-  var record = new Array(n);
-  for (var i = 0; i < n; i += 1) {
-    var key = keys[i];
-    var value = fields[key];
-    var field = {};
-    field[key] = value;
-    record[i] = field;
-    Object.defineProperty(record, key, {
-      value: value,
-      enumerable: false,
-      configurable: true,
-      writable: true});
+  else if (isObject(value)) {
+    var keys = Object.keys(value);
+    for (i = 1, n = keys.length; i < n; i += 1) {
+      var key = keys[i];
+      builder.appendField(key, value[key]);
+    }
+    return builder.state();
   }
-  return record;
 }
 
-function concat(x, y) {
-  var builder = new RecordBuilder();
-  if (isRecord(x)) builder.appendRecord(x);
-  else if (isObject(x)) builder.appendFields(x);
-  else if (x !== undefined) builder.appendItem(x);
-  if (isRecord(y)) builder.appendRecord(y);
-  else if (isObject(y)) builder.appendFields(y);
-  else if (y !== undefined) builder.appendItem(y);
-  return builder.state();
-}
-
-function equal(x, y) {
-  if (x === y) return true;
-  if (isRecord(x) && isRecord(y)) return equalRecord(x, y);
-  if (isField(x) && isField(y)) return equalFields(x, y);
-  if (x instanceof Uint8Array && y instanceof Uint8Array) return equalData(x, y);
-  return false;
-}
-function equalRecord(x, y) {
-  var n = x.length;
-  if (n !== y.length) return false;
-  for (var i = 0; i < n; i += 1) {
-    if (!equal(x[i], y[i])) return false;
+function tag(value) {
+  if (isRecord(value)) {
+    var header = value[0];
+    if (isField(header)) return header.$key || Object.keys(header)[0];
   }
-  return true;
-}
-function equalFields(x, y) {
-  var xKeys = Object.keys(x);
-  var yKeys = Object.keys(y);
-  var n = xKeys.length;
-  if (n !== yKeys.length) return false;
-  for (var i = 0; i < n; i += 1) {
-    var key = xKeys[i];
-    if (!equal(x[key], y[key])) return false;
-  }
-  return true;
-}
-function equalData(x, y) {
-  var n = x.length;
-  if (n !== y.length) return false;
-  for (var i = 0; i < n; i += 1) {
-    if (x[i] !== y[i]) return false;
-  }
-  return true;
+  else if (isObject(value)) return Object.keys(value)[0];
 }
 
 function get(record, key) {
@@ -222,6 +172,96 @@ function setObject(record, key, value) {
   if (typeof key === 'string') {
     record[key] = value;
   }
+}
+
+function concat(x, y) {
+  var builder = new RecordBuilder();
+  if (isRecord(x)) builder.appendRecord(x);
+  else if (isObject(x)) builder.appendFields(x);
+  else if (x !== undefined) builder.appendItem(x);
+  if (isRecord(y)) builder.appendRecord(y);
+  else if (isObject(y)) builder.appendFields(y);
+  else if (y !== undefined) builder.appendItem(y);
+  return builder.state();
+}
+
+function equal(x, y) {
+  if (x === y) return true;
+  if (isRecord(x) && isRecord(y)) return equalRecord(x, y);
+  if (isField(x) && isField(y)) return equalFields(x, y);
+  if (x instanceof Uint8Array && y instanceof Uint8Array) return equalData(x, y);
+  return false;
+}
+function equalRecord(x, y) {
+  var n = x.length;
+  if (n !== y.length) return false;
+  for (var i = 0; i < n; i += 1) {
+    if (!equal(x[i], y[i])) return false;
+  }
+  return true;
+}
+function equalFields(x, y) {
+  var xKeys = Object.keys(x);
+  var yKeys = Object.keys(y);
+  var n = xKeys.length;
+  if (n !== yKeys.length) return false;
+  for (var i = 0; i < n; i += 1) {
+    var key = xKeys[i];
+    if (!equal(x[key], y[key])) return false;
+  }
+  return true;
+}
+function equalData(x, y) {
+  var n = x.length;
+  if (n !== y.length) return false;
+  for (var i = 0; i < n; i += 1) {
+    if (x[i] !== y[i]) return false;
+  }
+  return true;
+}
+
+function coerce() {
+  if (arguments.length === 1) return coerceValue(arguments[0]);
+  else if (arguments.length > 1) return coerceRecord(arguments);
+}
+function coerceValue(value) {
+  if (isRecord(value)) return coerceRecord(value);
+  else if (isObject(value)) return coerceObject(value);
+  else return value;
+}
+function coerceRecord(items) {
+  var record = [];
+  var i, n;
+  for (i = 0, n = items.length; i < n; i += 1) {
+    record.push(items[i]);
+  }
+  var keys = Object.keys(items);
+  for (i = 0, n = keys.length; i < n; i += 1) {
+    var key = keys[i];
+    if (isNaN(parseInt(key))) {
+      var value = record[key];
+      set(record, key, value);
+    }
+  }
+  return record;
+}
+function coerceObject(fields) {
+  var keys = Object.keys(fields);
+  var n = keys.length;
+  var record = new Array(n);
+  for (var i = 0; i < n; i += 1) {
+    var key = keys[i];
+    var value = fields[key];
+    var field = {};
+    field[key] = value;
+    record[i] = field;
+    Object.defineProperty(record, key, {
+      value: value,
+      enumerable: false,
+      configurable: true,
+      writable: true});
+  }
+  return record;
 }
 
 
@@ -1827,6 +1867,9 @@ exports.parse = parse;
 exports.stringify = stringify;
 exports.base64 = base64;
 exports.isRecord = isRecord;
+exports.head = head;
+exports.tail = tail;
+exports.tag = tag;
 exports.get = get;
 exports.set = set;
 exports.concat = concat;

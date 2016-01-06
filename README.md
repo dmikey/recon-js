@@ -309,6 +309,16 @@ Serializes a JavaScript value as a RECON string.
 
 Base64-decodes a `string` into a `Uint8Array`.
 
+#### recon.head(value)
+
+Returns the first value or field value, if `value` is a record.  Returns
+`value` itself if `value` is not a record.
+
+#### recon.tag(value)
+
+Returns the key of the head field, if `value` is a record and its head value
+is a field.  Otherwise returns `undefined`.
+
 #### recon.get(key, value)
 
 Returns the record value associated with a key object.
