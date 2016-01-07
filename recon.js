@@ -366,12 +366,13 @@ ValueBuilder.prototype.state = function () {
 };
 
 
-function StringIterator(string, index) {
-  Object.defineProperty(this, 'string', {value: string || ''});
-  Object.defineProperty(this, 'index', {value: index || 0, writable: true});
+function StringIterator(string, index, more) {
+  this.string = string || '';
+  this.index = index || 0;
+  this.more = more || false;
 }
 StringIterator.prototype.isDone = function () {
-  return false;
+  return this.isEmpty() && !this.more;
 };
 StringIterator.prototype.isEmpty = function () {
   return this.index >= this.string.length;
@@ -398,6 +399,9 @@ StringIterator.prototype.step = function () {
     else this.index += 1;
   }
   else this.index += 1;
+};
+StringIterator.prototype.dup = function () {
+  return new StringIterator(this.string, this.index, this.more);
 };
 
 StringIterator.Done = {
@@ -432,10 +436,14 @@ StringIteratee.prototype.feed = function (input) {
 };
 StringIteratee.prototype.run = function (input) {
   var next = this;
-  while (!input.isEmpty() && next.isCont()) next = next.feed(input);
-  if (input.isEmpty() && !input.isDone() && next.isCont()) next = next.feed(StringIterator.Done);
+  do next = next.feed(input);
+  while (!input.isEmpty() && next.isCont());
+  if (input.isEmpty() && !input.isDone() && next.isCont()) {
+    next = next.feed(StringIterator.Done);
+  }
   return next;
 };
+StringIteratee.prototype.state = function () {};
 
 StringIteratee.Done = function (value) {
   StringIteratee.call(this);
@@ -507,13 +515,13 @@ StringBuilder.prototype.state = function () {
 
 
 function DataBuilder() {
-  Object.defineProperty(this, 'buffer', {value: null, writable: true});
-  Object.defineProperty(this, 'offset', {value: 0, writable: true});
-  Object.defineProperty(this, 'aliased', {value: true, writable: true});
-  Object.defineProperty(this, 'p', {value: 0, writable: true});
-  Object.defineProperty(this, 'q', {value: 0, writable: true});
-  Object.defineProperty(this, 'r', {value: 0, writable: true});
-  Object.defineProperty(this, 's', {value: 0, writable: true});
+  this.buffer = null;
+  this.offset = 0;
+  this.aliased = true;
+  this.p = 0;
+  this.q = 0;
+  this.r = 0;
+  this.s = 0;
 }
 DataBuilder.prototype.prepare = function (size) {
   function expand(base, size) {
@@ -1586,7 +1594,7 @@ DataParser.prototype.feed = function (input) {
 
 
 function ReconWriter(builder) {
-  Object.defineProperty(this, 'builder', {value: builder || new StringBuilder()});
+  this.builder = builder || new StringBuilder();
 }
 ReconWriter.prototype.writeValue = function (value) {
   if (isRecord(value)) this.writeRecord(value);
@@ -1859,6 +1867,1389 @@ ReconWriter.prototype.state = function () {
 };
 
 
+function isUnreservedChar(c) {
+  return (
+    c >= 65/*'A'*/ && c <= 90/*'Z'*/ ||
+    c >= 97/*'a'*/ && c <= 122/*'z'*/ ||
+    c >= 48/*'0'*/ && c <= 57/*'9'*/ ||
+    c === 45/*'-'*/ || c === 46/*'.'*/ ||
+    c === 95/*'_'*/ || c === 126/*'~'*/);
+}
+
+function isSubDelimChar(c) {
+  return (
+    c === 33/*'!'*/ || c === 36/*'$'*/ ||
+    c === 38/*'&'*/ || c === 40/*'('*/ ||
+    c === 41/*')'*/ || c === 42/*'*'*/ ||
+    c === 43/*'+'*/ || c === 44/*','*/ ||
+    c === 59/*';'*/ || c === 61/*'='*/ ||
+    c === 39/*'\''*/);
+}
+
+function isSchemeChar(c) {
+  return (
+    c >= 65/*'A'*/ && c <= 90/*'Z'*/ ||
+    c >= 97/*'a'*/ && c <= 122/*'z'*/ ||
+    c >= 48/*'0'*/ && c <= 57/*'9'*/ ||
+    c === 43/*'+'*/ || c === 45/*'-'*/ ||
+    c === 46/*'.'*/);
+}
+
+function isUserInfoChar(c) {
+  return (
+    isUnreservedChar(c) ||
+    isSubDelimChar(c) ||
+    c === 58/*':'*/);
+}
+
+function isUserChar(c) {
+  return (
+    isUnreservedChar(c) ||
+    isSubDelimChar(c));
+}
+
+function isHostChar(c) {
+  return (
+    isUnreservedChar(c) ||
+    isSubDelimChar(c));
+}
+
+function isPathChar(c) {
+  return (
+    isUnreservedChar(c) ||
+    isSubDelimChar(c) ||
+    c === 58/*':'*/ || c === 64/*'@'*/);
+}
+
+function isQueryChar(c) {
+  return (
+    isUnreservedChar(c) ||
+    isSubDelimChar(c) ||
+    c === 47/*'/'*/ || c === 58/*':'*/ ||
+    c === 63/*'?'*/ || c === 64/*'@'*/);
+}
+
+function isParamChar(c) {
+  return (
+    isUnreservedChar(c) ||
+    c === 33/*'!'*/ || c === 36/*'$'*/ ||
+    c === 40/*'('*/ || c === 41/*')'*/ ||
+    c === 42/*'*'*/ || c === 43/*'+'*/ ||
+    c === 44/*','*/ || c === 47/*'/'*/ ||
+    c === 58/*':'*/ || c === 59/*';'*/ ||
+    c === 63/*'?'*/ || c === 64/*'@'*/ ||
+    c === 39/*'\''*/);
+}
+
+function isFragmentChar(c) {
+  return (
+    isUnreservedChar(c) ||
+    isSubDelimChar(c) ||
+    c === 47/*'/'*/ || c === 58/*':'*/ ||
+    c === 63/*'?'*/ || c === 64/*'@'*/);
+}
+
+function isAlpha(c) {
+  return (
+    c >= 65/*'A'*/ && c <= 90/*'Z'*/ ||
+    c >= 97/*'a'*/ && c <= 122/*'z'*/);
+}
+
+function isDigit(c) {
+  return c >= 48/*'0'*/ && c <= 57/*'9'*/;
+}
+
+function isHexChar(c) {
+  return (
+    c >= 65/*'A'*/ && c <= 70/*'F'*/ ||
+    c >= 97/*'a'*/ && c <= 102/*'f'*/ ||
+    c >= 48/*'0'*/ && c <= 57/*'9'*/);
+}
+
+function decodeDigit(c) {
+  if (c >= 48/*'0'*/ && c <= 57/*'9'*/) return c - 48/*'0'*/;
+}
+
+function decodeHex(c) {
+  if (c >= 48/*'0'*/ && c <= 57/*'9'*/) return c - 48/*'0'*/;
+  else if (c >= 65/*'A'*/ && c <= 70/*'F'*/) return 10 + (c - 65/*'A'*/);
+  else if (c >= 97/*'a'*/ && c <= 102/*'f'*/) return 10 + (c - 97/*'a'*/);
+}
+
+function encodeHex(x) {
+  if (x < 10) return 48/*'0'*/ + x;
+  else return 65/*'A'*/ + (x - 10);
+}
+
+function toLowerCase(c) {
+  if (c >= 65/*'A'*/ && c <= 90/*'Z'*/) return c + (97/*'a'*/ - 65/*'A'*/);
+  else return c;
+}
+
+
+function UriParser(scheme, authority, path, query, fragment, s) {
+  StringIteratee.call(this);
+  this.scheme = scheme || null;
+  this.authority = authority || null;
+  this.path = path || null;
+  this.query = query || null;
+  this.fragment = fragment || null;
+  this.s = s || 1;
+}
+UriParser.prototype = Object.create(StringIteratee.prototype);
+UriParser.prototype.constructor = UriParser;
+UriParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var fragment = this.fragment;
+  var query = this.query;
+  var path = this.path;
+  var authority = this.authority;
+  var scheme = this.scheme;
+  var uri;
+  if (s === 1) {
+    if (!input.isEmpty()) {
+      var look = input.dup();
+      while (!look.isEmpty() && (c = look.head(), isSchemeChar(c))) look.step();
+      if (!look.isEmpty() && c === 58/*':'*/) s = 2;
+      else s = 3;
+    }
+    else if (input.isDone()) s = 3;
+  }
+  if (s === 2) {
+    scheme = scheme || new SchemeParser();
+    scheme = scheme.feed(input);
+    if (scheme.isError()) return scheme;
+    else if (!input.isEmpty() && (c = input.head(), c === 58/*':'*/)) {
+      input.step();
+      s = 3;
+    }
+    else if (!input.isEmpty()) return new StringIteratee.Error({expected: '\':\'', found: c});
+    else if (input.isDone()) return StringIteratee.unexpectedEOF;
+  }
+  if (s === 3) {
+    if (!input.isEmpty()) {
+      c = input.head();
+      if (c === 47/*'/'*/) {
+        input.step();
+        s = 4;
+      }
+      else if (c === 63/*'?'*/) {
+        input.step();
+        s = 7;
+      }
+      else if (c === 35/*'#'*/) {
+        input.step();
+        s = 8;
+      }
+      else s = 6;
+    }
+    else if (input.isDone()) {
+      uri = {};
+      if (scheme) uri.scheme = scheme.state();
+      return new StringIteratee.Done(uri);
+    }
+  }
+  if (s === 4) {
+    if (!input.isEmpty() && (c = input.head(), c === 47/*'/'*/)) {
+      input.step();
+      s = 5;
+    }
+    else if (!input.isEmpty()) {
+      path = new PathParser(['/']);
+      s = 6;
+    }
+    else if (input.isDone()) {
+      uri = {};
+      if (scheme) uri.scheme = scheme.state();
+      uri.path = ['/'];
+      return new StringIteratee.Done(uri);
+    }
+  }
+  if (s === 5) {
+    authority = authority || new AuthorityParser();
+    authority = authority.feed(input);
+    if (authority.isError()) return authority;
+    else if (!input.isEmpty()) {
+      c = input.head();
+      if (c === 63/*'?'*/) {
+        input.step();
+        s = 7;
+      }
+      else if (c === 35/*'#'*/) {
+        input.step();
+        s = 8;
+      }
+      else s = 6;
+    }
+    else if (input.isDone()) {
+      uri = {};
+      if (scheme) uri.scheme = scheme.state();
+      if (authority.state()) uri.authority = authority.state();
+      return new StringIteratee.Done(uri);
+    }
+  }
+  if (s === 6) {
+    path = path || new PathParser();
+    path = path.feed(input);
+    if (path.isError()) return path;
+    else if (!input.isEmpty()) {
+      c = input.head();
+      if (c === 63/*'?'*/) {
+        input.step();
+        s = 7;
+      }
+      else if (c === 35/*'#'*/) {
+        input.step();
+        s = 8;
+      }
+      else {
+        uri = {};
+        if (scheme) uri.scheme = scheme.state();
+        if (authority) uri.authority = authority.state();
+        uri.path = path.state();
+        return new StringIteratee.Done(uri);
+      }
+    }
+    else if (input.isDone()) {
+      uri = {};
+      if (scheme) uri.scheme = scheme.state();
+      if (authority) uri.authority = authority.state();
+      uri.path = path.state();
+      return new StringIteratee.Done(uri);
+    }
+  }
+  if (s === 7) {
+    query = query || new QueryParser();
+    query = query.feed(input);
+    if (query.isError()) return query;
+    else if (!input.isEmpty()) {
+      c = input.head();
+      if (c === 35/*'#'*/) {
+        input.step();
+        s = 8;
+      }
+      else {
+        uri = {};
+        if (scheme) uri.scheme = scheme.state();
+        if (authority) uri.authority = authority.state();
+        uri.path = path.state();
+        uri.query = query.state();
+        return new StringIteratee.Done(uri);
+      }
+    }
+    else if (input.isDone()) {
+      uri = {};
+      if (scheme) uri.scheme = scheme.state();
+      if (authority) uri.authority = authority.state();
+      if (path) uri.path = path.state();
+      uri.query = query.state();
+      return new StringIteratee.Done(uri);
+    }
+  }
+  if (s === 8) {
+    fragment = fragment || new FragmentParser();
+    fragment = fragment.feed(input);
+    if (fragment.isError()) return fragment;
+    else if (input.isDone()) {
+      uri = {};
+      if (scheme) uri.scheme = scheme.state();
+      if (authority) uri.authority = authority.state();
+      if (path) uri.path = path.state();
+      if (query) uri.query = query.state();
+      uri.fragment = fragment.state();
+      return new StringIteratee.Done(uri);
+    }
+  }
+  return new UriParser(scheme, authority, path, query, fragment, s);
+};
+UriParser.prototype.state = function () {
+  var scheme = this.scheme.state();
+  var authority = this.authority.state();
+  var path = this.path.state();
+  var query = this.query.state();
+  var fragment = this.fragment.state();
+  var uri = {};
+  if (scheme !== undefined) uri.scheme = scheme;
+  if (authority) uri.authority = authority;
+  if (path) uri.path = path;
+  if (query) uri.query = query;
+  if (fragment !== undefined) uri.fragment = fragment;
+  return uri;
+};
+
+
+function SchemeParser(builder, s) {
+  StringIteratee.call(this);
+  this.builder = builder || null;
+  this.s = s || 1;
+}
+SchemeParser.prototype = Object.create(StringIteratee.prototype);
+SchemeParser.prototype.constructor = SchemeParser;
+SchemeParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var builder = this.builder || new StringBuilder();
+  if (s === 1) {
+    if (!input.isEmpty() && (c = input.head(), isAlpha(c))) {
+      input.step();
+      builder.append(toLowerCase(c));
+      s = 2;
+    }
+    else if (!input.isEmpty() || input.isDone()) {
+      return new StringIteratee.Error({expected: 'scheme', found: c});
+    }
+  }
+  if (s === 2) {
+    while (!input.isEmpty() && (c = input.head(), isSchemeChar(c))) {
+      input.step();
+      builder.append(toLowerCase(c));
+    }
+    if (!input.isEmpty() || input.isDone()) return new StringIteratee.Done(builder.state());
+  }
+  return new SchemeParser(builder, s);
+};
+SchemeParser.prototype.state = function () {
+  if (this.builder) return this.builder.state();
+};
+
+
+function AuthorityParser(userInfo, host, port, s) {
+  StringIteratee.call(this);
+  this.userInfo = userInfo || null;
+  this.host = host || null;
+  this.port = port || null;
+  this.s = s || 1;
+}
+AuthorityParser.prototype = Object.create(StringIteratee.prototype);
+AuthorityParser.prototype.constructor = AuthorityParser;
+AuthorityParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var port = this.port;
+  var host = this.host;
+  var userInfo = this.userInfo;
+  var authority, hostinfo, userinfo;
+  if (s === 1) {
+    if (!input.isEmpty()) {
+      var look = input.dup();
+      while (!look.isEmpty() && (c = look.head(), c !== 64/*'@'*/ && c !== 47/*'/'*/)) look.step();
+      if (!look.isEmpty() && c === 64/*'@'*/) s = 2;
+      else s = 3;
+    }
+    else if (input.isDone()) s = 3;
+  }
+  if (s === 2) {
+    userInfo = userInfo || new UserInfoParser();
+    userInfo = userInfo.feed(input);
+    if (userInfo.isError()) return userInfo;
+    else if (!input.isEmpty() && (c = input.head(), c === 64/*'@'*/)) {
+      input.step();
+      s = 3;
+    }
+    else if (!input.isEmpty()) return new StringIteratee.Error({expected: 64/*'@'*/, found: c});
+    else if (input.isDone()) return StringIteratee.unexpectedEOF();
+  }
+  if (s === 3) {
+    host = host || new HostParser();
+    host = host.feed(input);
+    if (host.isError()) return host;
+    else if (!input.isEmpty() && input.head() === 58/*':'*/) {
+      input.step();
+      s = 4;
+    }
+    else if (!input.isEmpty() || input.isDone()) {
+      if (host.state()) {
+        authority = {};
+        hostinfo = host.state();
+        if (hostinfo.name !== undefined) authority.host = hostinfo.name;
+        if (hostinfo.ipv4 !== undefined) authority.ipv4 = hostinfo.ipv4;
+        if (hostinfo.ipv6 !== undefined) authority.ipv6 = hostinfo.ipv6;
+        if (userInfo) {
+          userinfo = userInfo.state();
+          if (typeof userinfo === 'string') authority.userInfo = userinfo;
+          else if (userinfo) {
+            authority.username = userinfo.username;
+            authority.password = userinfo.password;
+          }
+        }
+        return new StringIteratee.Done(authority);
+      }
+      else if (userInfo) {
+        authority = {};
+        userinfo = userInfo.state();
+        if (typeof userinfo === 'string') authority.userInfo = userinfo;
+        else if (userinfo) {
+          authority.username = userinfo.username;
+          authority.password = userinfo.password;
+        }
+        return new StringIteratee.Done(authority);
+      }
+      return new StringIteratee.Done(undefined);
+    }
+  }
+  if (s === 4) {
+    port = port || new PortParser();
+    port = port.feed(input);
+    if (port.isError()) return port;
+    else if (!input.isEmpty() || input.isDone()) {
+      authority = {};
+      hostinfo = host.state();
+      if (hostinfo.name !== undefined) authority.host = hostinfo.name;
+      if (hostinfo.ipv4 !== undefined) authority.ipv4 = hostinfo.ipv4;
+      if (hostinfo.ipv6 !== undefined) authority.ipv6 = hostinfo.ipv6;
+      authority.port = port.state();
+      if (userInfo) {
+        userinfo = userInfo.state();
+        if (typeof userinfo === 'string') authority.userInfo = userinfo;
+        else if (userinfo) {
+          authority.username = userinfo.username;
+          authority.password = userinfo.password;
+        }
+      }
+      return new StringIteratee.Done(authority);
+    }
+  }
+  return new AuthorityParser(userInfo, host, port, s);
+};
+AuthorityParser.prototype.state = function () {
+  if (this.host && this.host.state()) {
+    var authority = {};
+    var hostinfo = this.host.state();
+    if (hostinfo.name !== undefined) authority.host = hostinfo.name;
+    if (hostinfo.ipv4 !== undefined) authority.ipv4 = hostinfo.ipv4;
+    if (hostinfo.ipv6 !== undefined) authority.ipv6 = hostinfo.ipv6;
+    if (this.port) authority.port = this.port.state();
+    if (this.userInfo) {
+      var userinfo = this.userInfo.state();
+      if (typeof userinfo === 'string') authority.userInfo = userinfo;
+      else if (userinfo) {
+        authority.username = userinfo.username;
+        authority.password = userinfo.password;
+      }
+    }
+    return authority;
+  }
+};
+
+
+function UserInfoParser(username, password, c1, s) {
+  StringIteratee.call(this);
+  this.username = username || null;
+  this.password = password || null;
+  this.c1 = c1 || 0;
+  this.s = s || 1;
+}
+UserInfoParser.prototype = Object.create(StringIteratee.prototype);
+UserInfoParser.prototype.constructor = UserInfoParser;
+UserInfoParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var c1 = this.c1;
+  var password = this.password;
+  var username = this.username;
+  while (!input.isEmpty() || input.isDone()) {
+    if (s === 1) {
+      if (!username && !input.isEmpty()) username = new StringBuilder();
+      while (!input.isEmpty() && (c = input.head(), isUserChar(c))) {
+        input.step();
+        username.append(c);
+      }
+      if (!input.isEmpty() && c === 58/*':'*/) {
+        input.step();
+        s = 4;
+      }
+      else if (!input.isEmpty() && c === 37/*'%'*/) {
+        input.step();
+        s = 2;
+      }
+      else if (!input.isEmpty() || input.isDone()) {
+        return new StringIteratee.Done(username.state());
+      }
+    }
+    if (s === 2) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        c1 = c;
+        s = 3;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 3) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        username.append((decodeHex(c1) << 4) + decodeHex(c));
+        c1 = 0;
+        s = 1;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 4) {
+      password = password || new StringBuilder();
+      while (!input.isEmpty() && (c = input.head(), isUserInfoChar(c))) {
+        input.step();
+        password.append(c);
+      }
+      if (!input.isEmpty() && c === 37/*'%'*/) {
+        input.step();
+        s = 5;
+      }
+      else if (!input.isEmpty() || input.isDone()) {
+        var userInfo = {username: username.state(), password: password.state()};
+        return new StringIteratee.Done(userInfo);
+      }
+    }
+    if (s === 5) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        c1 = c;
+        s = 6;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 6) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        password.append((decodeHex(c1) << 4) + decodeHex(c));
+        c1 = 0;
+        s = 4;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+  }
+  return new UserInfoParser(username, password, c1, s);
+};
+UserInfoParser.prototype.state = function () {
+  if (this.password) return {username: this.username.state(), password: this.password.state()};
+  else if (this.username) return this.username.state();
+};
+
+
+function HostParser() {
+  StringIteratee.call(this);
+}
+HostParser.prototype = Object.create(StringIteratee.prototype);
+HostParser.prototype.constructor = HostParser;
+HostParser.prototype.feed = function (input) {
+  if (!input.isEmpty()) {
+    var c = input.head();
+    if (c === 91/*'['*/) return new HostLiteralParser().feed(input);
+    else return new HostAddressParser().feed(input);
+  }
+  return this;
+};
+
+
+function HostAddressParser(builder, c1, x, s) {
+  StringIteratee.call(this);
+  this.builder = builder || null;
+  this.c1 = c1 || 0;
+  this.x = x || 0;
+  this.s = s || 1;
+}
+HostAddressParser.prototype = Object.create(StringIteratee.prototype);
+HostAddressParser.prototype.constructor = HostAddressParser;
+HostAddressParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var x = this.x;
+  var c1 = this.c1;
+  var builder = this.builder;
+  var host;
+  while (s <= 4 && (!input.isEmpty() || input.isDone())) {
+    builder = builder || new StringBuilder();
+    while (!input.isEmpty() && (c = input.head(), isDigit(c))) {
+      input.step();
+      builder.append(c);
+      x = 10 * x + decodeDigit(c);
+    }
+    if (!input.isEmpty()) {
+      if (c === 46/*'.'*/ && s < 4 && x <= 255) {
+        input.step();
+        builder.append(c);
+        x = 0;
+        s += 1;
+      }
+      else if (!isHostChar(c) && c !== 37/*'%'*/ && s === 4 && x <= 255) {
+        host = {ipv4: builder.state()};
+        return new StringIteratee.Done(host);
+      }
+      else {
+        x = 0;
+        s = 5;
+      }
+    }
+    else if (input.isDone()) {
+      if (s === 4 && x <= 255) {
+        host = {ipv4: builder.state()};
+        return new StringIteratee.Done(host);
+      }
+      else {
+        host = {name: builder.state()};
+        return new StringIteratee.Done(host);
+      }
+    }
+  }
+  while (!input.isEmpty() || input.isDone()) {
+    if (s === 5) {
+      while (!input.isEmpty() && (c = input.head(), isHostChar(c))) {
+        input.step();
+        builder.append(toLowerCase(c));
+      }
+      if (!input.isEmpty() && c === 37/*'%'*/) {
+        input.step();
+        s = 6;
+      }
+      else if (!input.isEmpty() || input.isDone()) {
+        host = {name: builder.state()};
+        return new StringIteratee.Done(host);
+      }
+    }
+    if (s === 6) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        c1 = c;
+        s = 7;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 7) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        builder.append((decodeHex(c1) << 4) + decodeHex(c));
+        c1 = 0;
+        s = 5;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+  }
+  return new HostAddressParser(builder, c1, x, s);
+};
+HostAddressParser.prototype.state = function () {
+  if (this.builder) {
+    if (this.s === 4 && this.x <= 255) return {ipv4: this.builder.state()};
+    else return {name: this.builder.state()};
+  }
+};
+
+
+function HostLiteralParser(builder, s) {
+  StringIteratee.call(this);
+  this.builder = builder || null;
+  this.s = s || 1;
+}
+HostLiteralParser.prototype = Object.create(StringIteratee.prototype);
+HostLiteralParser.prototype.constructor = HostLiteralParser;
+HostLiteralParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var builder = this.builder;
+  if (s === 1) {
+    if (!input.isEmpty() && (c = input.head(), c === 91/*'['*/)) {
+      input.step();
+      s = 2;
+    }
+    else if (!input.isEmpty()) return new StringIteratee.Error({expected: '\'[\'', found: c});
+    else if (input.isDone()) return StringIteratee.unexpectedEOF;
+  }
+  if (s === 2) {
+    builder = builder || new StringBuilder();
+    while (!input.isEmpty() && (c = input.head(), isHostChar(c) || c === 58/*':'*/)) {
+      input.step();
+      builder.append(toLowerCase(c));
+    }
+    if (!input.isEmpty() && c === 93/*']'*/) {
+      input.step();
+      var host = {ipv6: builder.state()};
+      return new StringIteratee.Done(host);
+    }
+    else if (!input.isEmpty()) return new StringIteratee.Error({found: c});
+    else if (input.isDone()) return StringIteratee.unexpectedEOF;
+  }
+  return new HostLiteralParser(builder, s);
+};
+HostLiteralParser.prototype.state = function () {
+  if (this.builder) return {ipv6: this.builder.state()};
+};
+
+
+function PortParser(port) {
+  StringIteratee.call(this);
+  this.port = port || 0;
+}
+PortParser.prototype = Object.create(StringIteratee.prototype);
+PortParser.prototype.constructor = PortParser;
+PortParser.prototype.feed = function (input) {
+  var c = 0;
+  var port = this.port;
+  while (!input.isEmpty() && (c = input.head(), isDigit(c))) {
+    input.step();
+    port = 10 * port + decodeDigit(c);
+  }
+  if (!input.isEmpty() || input.isDone()) return new StringIteratee.Done(port);
+  return new PortParser(port);
+};
+PortParser.prototype.state = function () {
+  if (this.port !== 0) return this.port;
+};
+
+
+function PathParser(path, builder, c1, s) {
+  StringIteratee.call(this);
+  this.path = path || null;
+  this.builder = builder || null;
+  this.c1 = c1 || 0;
+  this.s = s || 1;
+}
+PathParser.prototype = Object.create(StringIteratee.prototype);
+PathParser.prototype.constructor = PathParser;
+PathParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var c1 = this.c1;
+  var builder = this.builder;
+  var path = this.path;
+  while (!input.isEmpty() || input.isDone()) {
+    if (s === 1) {
+      while (!input.isEmpty() && (c = input.head(), isPathChar(c))) {
+        builder = builder || new StringBuilder();
+        input.step();
+        builder.append(c);
+      }
+      if (!input.isEmpty() && c === 47/*'/'*/) {
+        input.step();
+        path = path || [];
+        if (builder) {
+          path.push(builder.state());
+          builder = null;
+        }
+        path.push('/');
+      }
+      else if (!input.isEmpty() && c === 37/*'%'*/) {
+        input.step();
+        s = 2;
+      }
+      else if (!input.isEmpty() || input.isDone()) {
+        path = path || [];
+        if (builder) path.push(builder.state());
+        return new StringIteratee.Done(path);
+      }
+    }
+    if (s === 2) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        c1 = c;
+        s = 3;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 3) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        builder = builder || new StringBuilder();
+        input.step();
+        builder.append((decodeHex(c1) << 4) + decodeHex(c));
+        c1 = 0;
+        s = 1;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+  }
+  return new PathParser(path, builder, c1, s);
+};
+PathParser.prototype.state = function () {
+  if (this.path) return this.path;
+  else return [];
+};
+
+
+function QueryParser(key, value, query, c1, s) {
+  StringIteratee.call(this);
+  this.key = key || null;
+  this.value = value || null;
+  this.query = query || null;
+  this.c1 = c1 || 0;
+  this.s = s || 1;
+}
+QueryParser.prototype = Object.create(StringIteratee.prototype);
+QueryParser.prototype.constructor = QueryParser;
+QueryParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var c1 = this.c1;
+  var query = this.query;
+  var value = this.value;
+  var key = this.key;
+  var k, v, param;
+  while (!input.isEmpty() || input.isDone()) {
+    if (s === 1) {
+      key = key || new StringBuilder();
+      while (!input.isEmpty() && (c = input.head(), isParamChar(c))) {
+        input.step();
+        key.append(c);
+      }
+      if (!input.isEmpty() && c === 61/*'='*/) {
+        input.step();
+        s = 4;
+      }
+      else if (!input.isEmpty() && c === 38/*'&'*/) {
+        input.step();
+        query = query || [];
+        query.push(key.state());
+        key = null;
+        s = 1;
+      }
+      else if (!input.isEmpty() && c === 37/*'%'*/) {
+        input.step();
+        s = 2;
+      }
+      else if (!input.isEmpty() || input.isDone()) {
+        if (!query) return new StringIteratee.Done(key.state());
+        else {
+          query.push(key.state());
+          return new StringIteratee.Done(query);
+        }
+      }
+    }
+    if (s === 2) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        c1 = c;
+        s = 3;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 3) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        key.append((decodeHex(c1) << 4) + decodeHex(c));
+        c1 = 0;
+        s = 1;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 4) {
+      value = value || new StringBuilder();
+      while (!input.isEmpty() && (c = input.head(), isParamChar(c) || c === 61/*'='*/)) {
+        input.step();
+        value.append(c);
+      }
+      if (!input.isEmpty() && c === 38/*'&'*/) {
+        input.step();
+        k = key.state();
+        v = value.state();
+        param = {};
+        param[k] = v;
+        query = query || [];
+        query.push(param);
+        query[k] = v;
+        key = null;
+        value = null;
+        s = 1;
+      }
+      else if (!input.isEmpty() && c === 38/*'%'*/) {
+        input.step();
+        s = 5;
+      }
+      else if (!input.isEmpty() || input.isDone()) {
+        k = key.state();
+        v = value.state();
+        param = {};
+        param[k] = v;
+        query = query || [];
+        query.push(param);
+        query[k] = v;
+        return new StringIteratee.Done(query);
+      }
+    }
+    if (s === 5) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        c1 = c;
+        s = 6;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 6) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        value.append((decodeHex(c1) << 4) + decodeHex(c));
+        c1 = 0;
+        s = 4;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+  }
+  return new QueryParser(key, value, query, c1, s);
+};
+QueryParser.prototype.state = function () {
+  if (this.query) return this.query;
+};
+
+
+function FragmentParser(builder, c1, s) {
+  StringIteratee.call(this);
+  this.builder = builder || null;
+  this.c1 = c1 || 0;
+  this.s = s || 1;
+}
+FragmentParser.prototype = Object.create(StringIteratee.prototype);
+FragmentParser.prototype.constructor = FragmentParser;
+FragmentParser.prototype.feed = function (input) {
+  var c = 0;
+  var s = this.s;
+  var c1 = this.c1;
+  var builder = this.builder || new StringBuilder();
+  while (!input.isEmpty() || input.isDone()) {
+    if (s === 1) {
+      while (!input.isEmpty() && (c = input.head(), isFragmentChar(c))) {
+        input.step();
+        builder.append(c);
+      }
+      if (!input.isEmpty() && c === 37/*'%'*/) {
+        input.step();
+        s = 2;
+      }
+      else if (!input.isEmpty() || input.isDone()) {
+        return new StringIteratee.Done(builder.state());
+      }
+    }
+    if (s === 2) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        c1 = c;
+        s = 3;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+    if (s === 3) {
+      if (!input.isEmpty() && (c = input.head(), isHexChar(c))) {
+        input.step();
+        builder.append((decodeHex(c1) << 4) + decodeHex(c));
+        c1 = 0;
+        s = 1;
+      }
+      else if (!input.isEmpty()) return new StringIteratee.Error({expected: 'hex digit', found: c});
+      else if (input.isDone()) return StringIteratee.unexpectedEOF;
+    }
+  }
+  return new FragmentParser(builder, c1, s);
+};
+FragmentParser.prototype.state = function () {
+  if (this.builder) return this.builder.state();
+};
+
+
+function parseUri(string) {
+  var input = new StringIterator(string);
+  var result = new UriParser().run(input);
+  return result.state();
+}
+function parseAuthority(string) {
+  var input = new StringIterator(string);
+  var result = new AuthorityParser().run(input);
+  return result.state();
+}
+function parsePath(string) {
+  var input = new StringIterator(string);
+  var result = new PathParser().run(input);
+  return result.state();
+}
+function stringifyUri(uri) {
+  var writer = new UriWriter();
+  writer.writeUri(uri);
+  return writer.state();
+}
+function resolveUri(base, relative) {
+  if (typeof base === 'string') base = parseUri(base);
+  if (typeof relative === 'string') relative = parseUri(relative);
+  var absolute = {};
+  if (relative.scheme) {
+    absolute.scheme = relative.scheme;
+    if (relative.authority) absolute.authority = relative.authority;
+    if (relative.path) absolute.path = removeDotSegments(relative.path);
+    if (relative.query !== undefined) absolute.query = relative.query;
+    if (relative.fragment !== undefined) absolute.fragment = relative.fragment;
+  }
+  else if (relative.authority) {
+    if (base.scheme) absolute.scheme = base.scheme;
+    absolute.authority = relative.authority;
+    if (relative.path) absolute.path = removeDotSegments(relative.path);
+    if (relative.query !== undefined) absolute.query = relative.query;
+    if (relative.fragment !== undefined) absolute.fragment = relative.fragment;
+  }
+  else if (!relative.path || !relative.path.length) {
+    if (base.scheme) absolute.scheme = base.scheme;
+    if (base.authority) absolute.authority = base.authority;
+    if (base.path) absolute.path = base.path;
+    if (relative.query !== undefined) absolute.query = relative.query;
+    else if (base.query !== undefined) absolute.query = base.query;
+    if (relative.fragment !== undefined) absolute.fragment = relative.fragment;
+  }
+  else if (relative.path[0] === '/') {
+    if (base.scheme) absolute.scheme = base.scheme;
+    if (base.authority) absolute.authority = base.authority;
+    if (relative.path) absolute.path = removeDotSegments(relative.path);
+    if (relative.query !== undefined) absolute.query = relative.query;
+    if (relative.fragment !== undefined) absolute.fragment = relative.fragment;
+  }
+  else {
+    if (base.scheme) absolute.scheme = base.scheme;
+    if (base.authority) absolute.authority = base.authority;
+    absolute.path = removeDotSegments(mergeUriPath(base, relative.path));
+    if (relative.query !== undefined) absolute.query = relative.query;
+    if (relative.fragment !== undefined) absolute.fragment = relative.fragment;
+  }
+  return absolute;
+}
+function mergeUriPath(base, relativePath) {
+  if (base.authority && (!base.path || !base.path.length)) {
+    var segments = relativePath.slice();
+    segments.unshift('/');
+    return segments;
+  }
+  else if (!base.path || !base.path.length) return relativePath;
+  else return mergePath(base.path.slice(), relativePath);
+}
+function mergePath(basePath, relativePath) {
+  var segments = [];
+  var head = basePath.shift();
+  while (basePath.length > 0) {
+    segments.push(head);
+    head = basePath.shift();
+  }
+  if (head === '/') segments.push(head);
+  for (var i = 0, n = relativePath.length; i < n; i += 1) {
+    segments.push(relativePath[i]);
+  }
+  return segments;
+}
+function removeDotSegments(path) {
+  var segments = [];
+  while (path.length > 0) {
+    var head = path[0];
+    if (head === '.' || head === '..') {
+      path = path.slice(path.length > 1 ? 2 : 1);
+    }
+    else if (head === '/') {
+      if (path.length > 1) {
+        var next = path[1];
+        if (next === '.') {
+          path = path.length > 2 ? path.slice(2) : ['/'];
+        }
+        else if (next === '..') {
+          path = path.length > 2 ? path.slice(2) : ['/'];
+          if (segments.length > 1 && segments[segments.length - 1] !== '/') {
+            segments = segments.slice(0, segments.length - 2);
+          }
+          else if (segments.length > 0) {
+            segments = segments.slice(0, segments.length - 1);
+          }
+        }
+        else {
+          segments.push(head);
+          segments.push(next);
+          path = path.slice(2);
+        }
+      }
+      else {
+        segments.push('/');
+        path.shift();
+      }
+    }
+    else {
+      segments.push(head);
+      path.shift();
+    }
+  }
+  return segments;
+}
+function unresolveUri(base, absolute) {
+  if (typeof base === 'string') base = parseUri(base);
+  if (typeof absolute === 'string') absolute = parseUri(absolute);
+  if (base.scheme !== absolute.scheme || !equal(base.authority, absolute.authority)) return absolute;
+  var relative = {};
+  var basePath = base.path;
+  if (typeof basePath === 'string') basePath = parsePath(basePath);
+  else if (!basePath) basePath = [];
+  else basePath = basePath.slice();
+  var absolutePath = absolute.path;
+  if (typeof absolutePath === 'string') absolutePath = parsePath(absolutePath);
+  else if (!absolutePath) absolutePath = [];
+  var relativePath = unmergePath(basePath, absolutePath.slice(), absolutePath);
+  if (relativePath.length > 0) relative.path = relativePath;
+  if (absolute.query !== undefined) relative.query = absolute.query;
+  if (absolute.fragment !== undefined) relative.fragment = absolute.fragment;
+  return relative;
+}
+function unmergePath(basePath, relativePath, absolutePath) {
+  if (basePath.length === 0) {
+    if (relativePath.length > 1) relativePath.shift();
+    return relativePath;
+  }
+  else if (basePath[0] !== '/') {
+    return relativePath;
+  }
+  else if (relativePath.length === 0 || relativePath[0] !== '/') {
+    relativePath.unshift('/');
+    return relativePath;
+  }
+  else {
+    basePath.shift();
+    relativePath.shift();
+    if (basePath.length > 0 && relativePath.length === 0) return ['/'];
+    else if (basePath.length === 0 || relativePath.length === 0 || basePath[0] !== relativePath[0]) {
+      return relativePath;
+    }
+    else {
+      basePath.shift();
+      relativePath.shift();
+      if (basePath.length > 0 && relativePath.length === 0) return absolutePath;
+      else return unmergePath(basePath, relativePath, absolutePath);
+    }
+  }
+}
+
+function UriWriter(builder) {
+  this.builder = builder || new StringBuilder();
+}
+UriWriter.prototype.writeUri = function (uri) {
+  if (uri.scheme) {
+    this.writeScheme(uri.scheme);
+    this.builder.append(58/*':'*/);
+  }
+  if (uri.authority) {
+    this.builder.append(47/*'/'*/);
+    this.builder.append(47/*'/'*/);
+    this.writeAuthority(uri.authority);
+  }
+  if (uri.path) {
+    this.writePath(uri.path);
+  }
+  if (uri.query !== undefined) {
+    this.builder.append(63/*'?'*/);
+    this.writeQuery(uri.query);
+  }
+  if (uri.fragment !== undefined) {
+    this.builder.append(35/*'#'*/);
+    this.writeFragment(uri.fragment);
+  }
+};
+UriWriter.prototype.writeScheme = function (scheme) {
+  var cs = new StringIterator(scheme);
+  while (!cs.isEmpty()) {
+    var c = cs.head();
+    if (isSchemeChar(c)) this.builder.append(c);
+    else throw 'Invalid URI scheme: ' + scheme;
+    cs.step();
+  }
+};
+UriWriter.prototype.writeAuthority = function (authority) {
+  if (typeof authority === 'string') authority = parseAuthority(authority);
+  if (authority.userInfo !== undefined) {
+    this.writeUserInfo(authority.userInfo);
+    this.builder.append(64/*'@'*/);
+  }
+  else if (authority.username !== undefined && authority.password !== undefined) {
+    this.writeUser(authority.username);
+    this.builder.append(58/*':'*/);
+    this.writeUserInfo(authority.password);
+    this.builder.append(64/*'@'*/);
+  }
+  if (authority.host !== undefined) {
+    this.writeHost(authority.host);
+  }
+  else if (authority.ipv4 !== undefined) {
+    this.writeHost(authority.ipv4);
+  }
+  else if (authority.ipv6 !== undefined) {
+    this.builder.append(91/*'['*/);
+    this.writeHostLiteral(authority.ipv6);
+    this.builder.append(93/*']'*/);
+  }
+  if (authority.port) {
+    this.builder.append(58/*':'*/);
+    this.writePort(authority.port);
+  }
+};
+UriWriter.prototype.writeUserInfo = function (userInfo) {
+  var cs = new StringIterator(userInfo);
+  while (!cs.isEmpty()) {
+    var c = cs.head();
+    if (isUserInfoChar(c)) this.builder.append(c);
+    else this.writeEncoded(c);
+    cs.step();
+  }
+};
+UriWriter.prototype.writeUser = function (user) {
+  var cs = new StringIterator(user);
+  while (!cs.isEmpty()) {
+    var c = cs.head();
+    if (isUserChar(c)) this.builder.append(c);
+    else this.writeEncoded(c);
+    cs.step();
+  }
+};
+UriWriter.prototype.writeHost = function (host) {
+  var cs = new StringIterator(host);
+  while (!cs.isEmpty()) {
+    var c = cs.head();
+    if (isHostChar(c)) this.builder.append(c);
+    else this.writeEncoded(c);
+    cs.step();
+  }
+};
+UriWriter.prototype.writeHostLiteral = function (host) {
+  var cs = new StringIterator(host);
+  while (!cs.isEmpty()) {
+    var c = cs.head();
+    if (isHostChar(c) || c === 58/*':'*/) this.builder.append(c);
+    else this.writeEncoded(c);
+    cs.step();
+  }
+};
+UriWriter.prototype.writePort = function (port) {
+  var i = 9;
+  var digits = new Array(10);
+  while (port > 0) {
+    digits[i] = port % 10;
+    port = Math.floor(port / 10);
+    i -= 1;
+  }
+  i += 1;
+  while (i < 10) {
+    this.builder.append(48/*'0'*/ + digits[i]);
+    i += 1;
+  }
+};
+UriWriter.prototype.writePath = function (path) {
+  if (typeof path === 'string') path = parsePath(path);
+  for (var i = 0, n = path.length; i < n; i += 1) {
+    var segment = path[i];
+    if (segment === '/') this.builder.append(47/*'/'*/);
+    else this.writePathSegment(segment);
+  }
+};
+UriWriter.prototype.writePathSegment = function (segment) {
+  var cs = new StringIterator(segment);
+  while (!cs.isEmpty()) {
+    var c = cs.head();
+    if (isPathChar(c)) this.builder.append(c);
+    else this.writeEncoded(c);
+    cs.step();
+  }
+};
+UriWriter.prototype.writeQuery = function (query) {
+  if (typeof query === 'string') this.writeQueryPart(query);
+  else if (Array.isArray(query)) this.writeQueryArray(query);
+  else if (query) this.writeQueryParams(query);
+};
+UriWriter.prototype.writeQueryArray = function (query) {
+  for (var i = 0, n = query.length; i < n; i += 1) {
+    var param = query[i];
+    if (typeof param === 'string') {
+      if (i > 0) this.builder.append(38/*'&'*/);
+      this.writeQueryParam(param);
+    }
+    else this.writeQueryParams(param, i);
+  }
+};
+UriWriter.prototype.writeQueryParams = function (params, i) {
+  var keys = Object.keys(params);
+  for (var j = 0, n = keys.length; j < n; i += 1, j += 1) {
+    var key = keys[j];
+    var value = params[key];
+    if (i > 0) this.builder.append(38/*'&'*/);
+    this.writeQueryParam(key);
+    this.builder.append(61/*'='*/);
+    this.writeQueryParam(value);
+  }
+};
+UriWriter.prototype.writeQueryParam = function (param) {
+  var cs = new StringIterator(param);
+  while (!cs.isEmpty()) {
+    var c = cs.head();
+    if (isParamChar(c)) this.builder.append(c);
+    else this.writeEncoded(c);
+    cs.step();
+  }
+};
+UriWriter.prototype.writeQueryPart = function (query) {
+  var cs = new StringIterator(query);
+  while (!cs.isEmpty()) {
+    var c = cs.head();
+    if (isQueryChar(c)) this.builder.append(c);
+    else this.writeEncoded(c);
+    cs.step();
+  }
+};
+UriWriter.prototype.writeFragment = function (fragment) {
+  var cs = new StringIterator(fragment);
+  while (!cs.isEmpty()) {
+    var c = cs.head();
+    if (isFragmentChar(c)) this.builder.append(c);
+    else this.writeEncoded(c);
+    cs.step();
+  }
+};
+UriWriter.prototype.writeEncoded = function (c) {
+  if (c === 0x00) { // modified UTF-8
+    this.writePctEncoded(0xC0);
+    this.writePctEncoded(0x80);
+  }
+  else if (c >= 0x00 && c <= 0x7F) { // U+0000..U+007F
+    this.writePctEncoded(c);
+  }
+  else if (c >= 0x80 && c <= 0x07FF) { // U+0080..U+07FF
+    this.writePctEncoded(0xC0 | (c >>> 6));
+    this.writePctEncoded(0x80 | (c & 0x3F));
+  }
+  else if (c >= 0x0800 && c <= 0xFFFF || // U+0800..U+D7FF
+           c >= 0xE000 && c <= 0xFFFF) { // U+E000..U+FFFF
+    this.writePctEncoded(0xE0 | (c >>> 12));
+    this.writePctEncoded(0x80 | (c >>> 6 & 0x3F));
+    this.writePctEncoded(0x80 | (c & 0x3F));
+  }
+  else if (c >= 0x10000 && c <= 0x10FFFF) { // U+10000..U+10FFFF
+    this.writePctEncoded(0xF0 | (c >>> 18));
+    this.writePctEncoded(0x80 | (c >>> 12 & 0x3F));
+    this.writePctEncoded(0x80 | (c >>> 6 & 0x3F));
+    this.writePctEncoded(0x80 | (c & 0x3F));
+  }
+  else { // surrogate or invalid code point
+    this.writePctEncoded(0xEF);
+    this.writePctEncoded(0xBF);
+    this.writePctEncoded(0xBD);
+  }
+};
+UriWriter.prototype.writePctEncoded = function (c) {
+  this.builder.append(37/*'%'*/);
+  this.builder.append(encodeHex(c >>> 4 & 0xF));
+  this.builder.append(encodeHex(c & 0xF));
+};
+UriWriter.prototype.state = function () {
+  return this.builder.state();
+};
+
+var uri = {};
+uri.parse = parseUri;
+uri.stringify = stringifyUri;
+uri.resolve = resolveUri;
+uri.unresolve = unresolveUri;
+
+
 module.exports = function (value) {
   return coerce.apply(null, arguments);
 };
@@ -1874,4 +3265,5 @@ exports.get = get;
 exports.set = set;
 exports.concat = concat;
 exports.equal = equal;
+exports.uri = uri;
 exports.config = config;

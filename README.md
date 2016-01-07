@@ -336,6 +336,74 @@ Concatenates two RECON valuesinto a single, flattened record.
 
 Compares two RECON values for equality.
 
+#### recon.uri.parse(string)
+
+Parses a URI string into a structured URI object.  Parsed URIs have the
+following structure:
+
+```
+{
+  scheme: <string>,
+  authority: {
+    (host | ipv4 | ipv6): <string>,
+    (userInfo | username + password): <string>,
+  },
+  path: [<string>],
+  query: <string> | [], // key
+  fragment: <string>
+}
+```
+
+If a URI string has an undefined component, then the corresponding field of
+the parsed URI object will also be undefined.  Query arrays have a
+corresponding field member set for each key-value parameter.
+
+##### Examples
+
+```js
+recon.uri.parse('http://example.com');
+// {scheme: "http", authority: {host: "example.com"}}
+
+recon.uri.parse('http://example.com/');
+// {scheme: "http", authority: {host: "example.com"}, path: ["/"]}
+
+recon.uri.parse('http://example.com/foo/bar');
+// {scheme: "http", authority: {host: "example.com"}, path: ["/", "foo", "/", "bar"]}
+
+recon.uri.parse('http://example.com?search');
+// {scheme: "http", authority: {host: "example.com"}, query: "search"}
+
+recon.uri.parse('http://example.com?key=value');
+// {scheme: "http", authority: {host: "example.com"}, query: {key: "value"}}
+
+recon.uri.parse('http://example.com?key=value&other');
+// {scheme: "http", authority: {host: "example.com"}, query: [{key: "value"}, "other"]}
+
+recon.uri.parse('http://example.com#anchor');
+// {scheme: "http", authority: {host: "example.com"}, fragment: "anchor"}
+
+recon.uri.parse('http://user@example.com');
+// {scheme: "http", authority: {host: "example.com", userInfo: "user"}}
+
+recon.uri.parse('http://user:pass@example.com');
+// {scheme: "http", authority: {host: "example.com", username: "user", password: "pass"}}
+
+```
+
+#### recon.uri.stringify(uri)
+
+Serializes a parsed URI object as a URI string.
+
+#### recon.uri.resolve(base, relative)
+
+Returns the parsed absolute URI obtained by resolving a relative URI against
+some base URI;
+
+#### recon.uri.unresolve(base, absolute)
+
+Returns the parsed relative URI obtained by unresolving an absolute URI against
+some base URI.
+
 ## Language Grammar
 
 ```

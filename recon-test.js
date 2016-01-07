@@ -8,6 +8,7 @@ var pkg = require('./package.json');
 var parse = recon.parse;
 var stringify = recon.stringify;
 var base64 = recon.base64;
+var uri = recon.uri;
 
 assert.same = function (x, y) {
   if (!recon.equal(x, y)) {
@@ -1020,5 +1021,580 @@ describe('RECON serializer', function () {
 
   it('should stringify naked slots', function () {
     assert.equal(stringify({answer: 42}), 'answer:42');
+  });
+});
+
+
+describe('URI parser', function () {
+  it('should parse empty URIs', function () {
+    assert.same(uri.parse(''), {});
+  });
+
+  it('should parse URIs with schemes', function () {
+    assert.same(uri.parse('scheme:'), {scheme: 'scheme'});
+    assert.same(uri.parse('AZaz09+-.:'), {scheme: 'azaz09+-.'});
+  });
+
+  it('should parse URIs with empty authorities', function () {
+    assert.same(uri.parse('//'), {});
+  });
+
+  it('should parse URIs with host names', function () {
+    assert.same(uri.parse('//domain'), {authority: {host: 'domain'}});
+  });
+
+  it('should parse URIs with IPv4 addresses', function () {
+    assert.same(uri.parse('//127.0.0.1'), {authority: {ipv4: '127.0.0.1'}});
+  });
+
+  it('should parse URIs with IPv6 addresses', function () {
+    assert.same(uri.parse('//[::1]'), {authority: {ipv6: '::1'}});
+  });
+
+  it('should parse URIs with host names and ports', function () {
+    assert.same(uri.parse('//domain:80'), {authority: {host: 'domain', port: 80}});
+  });
+
+  it('should parse URIs with IPv4 addresses and ports', function () {
+    assert.same(uri.parse('//127.0.0.1:80'), {authority: {ipv4: '127.0.0.1', port: 80}});
+  });
+
+  it('should parse URIs with IPv6 addresses and ports', function () {
+    assert.same(uri.parse('//[::1]:80'), {authority: {ipv6: '::1', port: 80}});
+  });
+
+  it('should parse URIs with ports but no host info', function () {
+    assert.same(uri.parse('//:80'), {authority: {host: '', port: 80}});
+  });
+
+  it('should parse URIs with empty ports', function () {
+    assert.same(uri.parse('//:'), {authority: {host: '', port: 0}});
+  });
+
+  it('should parse URIs with empty user info', function () {
+    assert.same(uri.parse('//@'), {authority: {userInfo: ''}});
+  });
+
+  it('should parse URIs with empty user info and ports', function () {
+    assert.same(uri.parse('//@:'), {authority: {host: '', port: 0, userInfo: ''}});
+  });
+
+  it('should parse URIs with user info but no host info', function () {
+    assert.same(uri.parse('//user@'), {authority: {userInfo: 'user'}});
+  });
+
+  it('should parse URIs with username and password info but no host info', function () {
+    assert.same(uri.parse('//user:pass@'), {authority: {username: 'user', password: 'pass'}});
+  });
+
+  it('should parse URIs with user info and host names', function () {
+    assert.same(
+      uri.parse('//user@domain'),
+      {authority: {host: 'domain', userInfo: 'user'}});
+  });
+
+  it('should parse URIs with username and password info and host names', function () {
+    assert.same(
+      uri.parse('//user:pass@domain'),
+      {authority: {host: 'domain', username: 'user', password: 'pass'}});
+  });
+
+  it('should parse URIs with user info and IPv4 addresses', function () {
+    assert.same(
+      uri.parse('//user@127.0.0.1'),
+      {authority: {ipv4: '127.0.0.1', userInfo: 'user'}});
+  });
+
+  it('should parse URIs with username and password info and IPv4 addresses', function () {
+    assert.same(
+      uri.parse('//user:pass@127.0.0.1'),
+      {authority: {ipv4: '127.0.0.1', username: 'user', password: 'pass'}});
+  });
+
+  it('should parse URIs with user info and IPv6 addresses', function () {
+    assert.same(
+      uri.parse('//user@[::1]'),
+      {authority: {ipv6: '::1', userInfo: 'user'}});
+  });
+
+  it('should parse URIs with username and password info and IPv6 addresses', function () {
+    assert.same(
+      uri.parse('//user:pass@[::1]'),
+      {authority: {ipv6: '::1', username: 'user', password: 'pass'}});
+  });
+
+  it('should parse URIs with user info, host names, and ports', function () {
+    assert.same(
+      uri.parse('//user@domain:80'),
+      {authority: {host: 'domain', port: 80, userInfo: 'user'}});
+  });
+
+  it('should parse URIs with user info, IPv4 addresses, and ports', function () {
+    assert.same(
+      uri.parse('//user@127.0.0.1:80'),
+      {authority: {ipv4: '127.0.0.1', port: 80, userInfo: 'user'}});
+  });
+
+  it('should parse URIs with user info, IPv6 addresses, and ports', function () {
+    assert.same(
+      uri.parse('//user@[::1]:80'),
+      {authority: {ipv6: '::1', port: 80, userInfo: 'user'}});
+  });
+
+  it('should parse URIs with absolute paths', function () {
+    assert.same(uri.parse('/'), {path: ['/']});
+    assert.same(uri.parse('/one'), {path: ['/', 'one']});
+    assert.same(uri.parse('/one/'), {path: ['/', 'one', '/']});
+    assert.same(uri.parse('/one/two'), {path: ['/', 'one', '/', 'two']});
+    assert.same(uri.parse('/one/two/'), {path: ['/', 'one', '/', 'two', '/']});
+  });
+
+  it('should parse URIs with relative paths', function () {
+    assert.same(uri.parse('one'), {path: ['one']});
+    assert.same(uri.parse('one/'), {path: ['one', '/']});
+    assert.same(uri.parse('one/two'), {path: ['one', '/', 'two']});
+    assert.same(uri.parse('one/two/'), {path: ['one', '/', 'two', '/']});
+  });
+
+  it('should parse URIs with paths containing permitted deliminters', function () {
+    assert.same(
+      uri.parse('/one/!$&()*+,;=\'/three'),
+      {path: ['/', 'one', '/', '!$&()*+,;=\'', '/', 'three']});
+  });
+
+  it('should parse URIs with paths beginning with percent escapes', function () {
+    assert.same(uri.parse('%20'), {path: [' ']});
+  });
+
+  it('should parse URIs with empty queries', function () {
+    assert.same(uri.parse('?'), {query: ''});
+  });
+
+  it('should parse URIs with query parts', function () {
+    assert.same(uri.parse('?query'), {query: 'query'});
+  });
+
+  it('should parse URIs with query params', function () {
+    assert.same(uri.parse('?key=value'), {query: [{key: 'value'}]});
+    assert.same(uri.parse('?k1=v1&k2=v2'), {query: [{k1: 'v1'}, {k2: 'v2'}]});
+    assert.same(uri.parse('?k1=v=1'), {query: [{k1: 'v=1'}]});
+    assert.same(uri.parse('?k1='), {query: [{k1: ''}]});
+    assert.same(uri.parse('?=v1'), {query: [{'': 'v1'}]});
+    assert.same(uri.parse('?='), {query: [{'': ''}]});
+    assert.same(uri.parse('?a&b'), {query: ['a', 'b']});
+  });
+
+  it('should parse URIs with queries containing permitted delimiters', function () {
+    assert.same(uri.parse('?!$()*+,/:;?@\''), {query: '!$()*+,/:;?@\''});
+  });
+
+  it('should parse URIs with empty fragments', function () {
+    assert.same(uri.parse('#'), {fragment: ''});
+  });
+
+  it('should parse URIs with fragments', function () {
+    assert.same(uri.parse('#fragment'), {fragment: 'fragment'});
+  });
+
+  it('should parse URIs with fragments containing permitted delimiters', function () {
+    assert.same(uri.parse('#!$&()*+,/:;?@=\''), {fragment: '!$&()*+,/:;?@=\''});
+  });
+
+  it('should parse URIs with schemes and authorities', function () {
+    assert.same(
+      uri.parse('scheme://domain'),
+      {scheme: 'scheme', authority: {host: 'domain'}});
+    assert.same(
+      uri.parse('scheme://domain:80'),
+      {scheme: 'scheme', authority: {host: 'domain', port: 80}});
+    assert.same(
+      uri.parse('scheme://user@domain'),
+      {scheme: 'scheme', authority: {host: 'domain', userInfo: 'user'}});
+    assert.same(
+      uri.parse('scheme://user@domain:80'),
+      {scheme: 'scheme', authority: {host: 'domain', port: 80, userInfo: 'user'}});
+  });
+
+  it('should parse URIs with schemes and absolute paths', function () {
+    assert.same(uri.parse('scheme:/'), {scheme: 'scheme', path: ['/']});
+    assert.same(uri.parse('scheme:/one'), {scheme: 'scheme', path: ['/', 'one']});
+    assert.same(uri.parse('scheme:/one/'), {scheme: 'scheme', path: ['/', 'one', '/']});
+    assert.same(uri.parse('scheme:/one/two'), {scheme: 'scheme', path: ['/', 'one', '/', 'two']});
+    assert.same(uri.parse('scheme:/one/two/'), {scheme: 'scheme', path: ['/', 'one', '/', 'two', '/']});
+  });
+
+  it('should parse URIs with schemes and relative paths', function () {
+    assert.same(uri.parse('scheme:one'), {scheme: 'scheme', path: ['one']});
+    assert.same(uri.parse('scheme:one/'), {scheme: 'scheme', path: ['one', '/']});
+    assert.same(uri.parse('scheme:one/two'), {scheme: 'scheme', path: ['one', '/', 'two']});
+    assert.same(uri.parse('scheme:one/two/'), {scheme: 'scheme', path: ['one', '/', 'two', '/']});
+  });
+
+  it('should parse URIs with schemes and queries', function () {
+    assert.same(uri.parse('scheme:?query'), {scheme: 'scheme', query: 'query'});
+    assert.same(uri.parse('scheme:?key=value'), {scheme: 'scheme', query: [{key: 'value'}]});
+  });
+
+  it('should parse URIs with schemes and fragments', function () {
+    assert.same(uri.parse('scheme:#fragment'), {scheme: 'scheme', fragment: 'fragment'});
+  });
+
+  it('should parse URIs with schemes, authorities, and paths', function () {
+    assert.same(
+      uri.parse('scheme://domain/path'),
+      {scheme: 'scheme', authority: {host: 'domain'}, path: ['/', 'path']});
+    assert.same(
+      uri.parse('scheme://domain:80/path'),
+      {scheme: 'scheme', authority: {host: 'domain', port: 80}, path: ['/', 'path']});
+  });
+
+  it('should parse URIs with schemes, authorities, and queries', function () {
+    assert.same(
+      uri.parse('scheme://domain?query'),
+      {scheme: 'scheme', authority: {host: 'domain'}, query: 'query'});
+    assert.same(
+      uri.parse('scheme://domain:80?query'),
+      {scheme: 'scheme', authority: {host: 'domain', port: 80}, query: 'query'});
+  });
+
+  it('should parse URIs with schemes, authorities, and fragments', function () {
+    assert.same(
+      uri.parse('scheme://domain#fragment'),
+      {scheme: 'scheme', authority: {host: 'domain'}, fragment: 'fragment'});
+    assert.same(
+      uri.parse('scheme://domain:80#fragment'),
+      {scheme: 'scheme', authority: {host: 'domain', port: 80}, fragment: 'fragment'});
+  });
+
+  it('should parse URIs with schemes, authorities, paths, and queries', function () {
+    assert.same(
+      uri.parse('scheme://domain/path?query'),
+      {scheme: 'scheme', authority: {host: 'domain'}, path: ['/', 'path'], query: 'query'});
+    assert.same(
+      uri.parse('scheme://domain:80/path?query'),
+      {scheme: 'scheme', authority: {host: 'domain', port: 80}, path: ['/', 'path'], query: 'query'});
+  });
+
+  it('should parse URIs with schemes, authorities, paths, and fragments', function () {
+    assert.same(
+      uri.parse('scheme://domain/path#fragment'),
+      {scheme: 'scheme', authority: {host: 'domain'}, path: ['/', 'path'], fragment: 'fragment'});
+    assert.same(
+      uri.parse('scheme://domain:80/path#fragment'),
+      {scheme: 'scheme', authority: {host: 'domain', port: 80}, path: ['/', 'path'], fragment: 'fragment'});
+  });
+
+  it('should parse URIs with schemes, authorities, paths, queries, and fragments', function () {
+    assert.same(
+      uri.parse('scheme://domain/path?query#fragment'),
+      {scheme: 'scheme', authority: {host: 'domain'}, path: ['/', 'path'], query: 'query', fragment: 'fragment'});
+    assert.same(
+      uri.parse('scheme://domain:80/path?query#fragment'),
+      {scheme: 'scheme', authority: {host: 'domain', port: 80}, path: ['/', 'path'], query: 'query', fragment: 'fragment'});
+  });
+});
+
+
+describe('URI serializer', function () {
+  function assertTranscodes(string) {
+    assert.same(uri.stringify(uri.parse(string)), string);
+  }
+
+  it('should stringify empty URIs', function () {
+    assertTranscodes('');
+  });
+
+  it('should stringify URIs with schemes', function () {
+    assertTranscodes('scheme:');
+    assertTranscodes('az09+-.:');
+  });
+
+  it('should stringify URIs with host names', function () {
+    assertTranscodes('//domain');
+  });
+
+  it('should stringify URIs with IPv4 addresses', function () {
+    assertTranscodes('//127.0.0.1');
+  });
+
+  it('should stringify URIs with IPv6 addresses', function () {
+    assertTranscodes('//[::1]');
+  });
+
+  it('should stringify URIs with host names and ports', function () {
+    assertTranscodes('//domain:80');
+  });
+
+  it('should stringify URIs with IPv4 addresses and ports', function () {
+    assertTranscodes('//127.0.0.1:80');
+  });
+
+  it('should stringify URIs with IPv6 addresses and ports', function () {
+    assertTranscodes('//[::1]:80');
+  });
+
+  it('should stringify URIs with ports but no host info', function () {
+    assertTranscodes('//:80');
+  });
+
+  it('should stringify URIs with empty user info', function () {
+    assertTranscodes('//@');
+  });
+
+  it('should stringify URIs with user info but no host info', function () {
+    assertTranscodes('//user@');
+  });
+
+  it('should stringify URIs with username and password info but no host info', function () {
+    assertTranscodes('//user:pass@');
+  });
+
+  it('should stringify URIs with user info and host names', function () {
+    assertTranscodes('//user@domain');
+  });
+
+  it('should stringify URIs with username and password info and host names', function () {
+    assertTranscodes('//user:pass@domain');
+  });
+
+  it('should stringify URIs with user info and IPv4 addresses', function () {
+    assertTranscodes('//user@127.0.0.1');
+  });
+
+  it('should stringify URIs with username and password info and IPv4 addresses', function () {
+    assertTranscodes('//user:pass@127.0.0.1');
+  });
+
+  it('should stringify URIs with user info and IPv6 addresses', function () {
+    assertTranscodes('//user@[::1]');
+  });
+
+  it('should stringify URIs with username and password info and IPv6 addresses', function () {
+    assertTranscodes('//user:pass@[::1]');
+  });
+
+  it('should stringify URIs with user info, host names, and ports', function () {
+    assertTranscodes('//user@domain:80');
+  });
+
+  it('should stringify URIs with user info, IPv4 addresses, and ports', function () {
+    assertTranscodes('//user@127.0.0.1:80');
+  });
+
+  it('should stringify URIs with user info, IPv6 addresses, and ports', function () {
+    assertTranscodes('//user@[::1]:80');
+  });
+
+  it('should stringify URIs with absolute paths', function () {
+    assertTranscodes('/');
+    assertTranscodes('/one');
+    assertTranscodes('/one/');
+    assertTranscodes('/one/two');
+    assertTranscodes('/one/two/');
+  });
+
+  it('should stringify URIs with relative paths', function () {
+    assertTranscodes('one');
+    assertTranscodes('one/');
+    assertTranscodes('one/two');
+    assertTranscodes('one/two/');
+  });
+
+  it('should stringify URIs with paths containing permitted deliminters', function () {
+    assertTranscodes('/one/!$&()*+,;=\'/three');
+  });
+
+  it('should stringify URIs with paths beginning with percent escapes', function () {
+    assertTranscodes('%20');
+  });
+
+  it('should stringify URIs with empty queries', function () {
+    assertTranscodes('?');
+  });
+
+  it('should stringify URIs with query parts', function () {
+    assertTranscodes('?query');
+  });
+
+  it('should stringify URIs with query params', function () {
+    assertTranscodes('?key=value');
+    assertTranscodes('?k1=v1&k2=v2');
+    assertTranscodes('?k1=');
+    assertTranscodes('?=v1');
+    assertTranscodes('?=');
+    assertTranscodes('?a&b');
+  });
+
+  it('should stringify URIs with queries containing permitted delimiters', function () {
+    assertTranscodes('?!$()*+,/:;?@\'');
+  });
+
+  it('should stringify URIs with empty fragments', function () {
+    assertTranscodes('#');
+  });
+
+  it('should stringify URIs with fragments', function () {
+    assertTranscodes('#fragment');
+  });
+
+  it('should stringify URIs with fragments containing permitted delimiters', function () {
+    assertTranscodes('#!$&()*+,/:;?@=\'');
+  });
+
+  it('should stringify URIs with schemes and authorities', function () {
+    assertTranscodes('scheme://domain');
+    assertTranscodes('scheme://domain:80');
+    assertTranscodes('scheme://user@domain');
+    assertTranscodes('scheme://user@domain:80');
+  });
+
+  it('should stringify URIs with schemes and absolute paths', function () {
+    assertTranscodes('scheme:/');
+    assertTranscodes('scheme:/one');
+    assertTranscodes('scheme:/one/');
+    assertTranscodes('scheme:/one/two');
+    assertTranscodes('scheme:/one/two/');
+  });
+
+  it('should stringify URIs with schemes and relative paths', function () {
+    assertTranscodes('scheme:one');
+    assertTranscodes('scheme:one/');
+    assertTranscodes('scheme:one/two');
+    assertTranscodes('scheme:one/two/');
+  });
+
+  it('should stringify URIs with schemes and queries', function () {
+    assertTranscodes('scheme:?query');
+    assertTranscodes('scheme:?key=value');
+  });
+
+  it('should stringify URIs with schemes and fragments', function () {
+    assertTranscodes('scheme:#fragment');
+  });
+
+  it('should stringify URIs with schemes, authorities, and paths', function () {
+    assertTranscodes('scheme://domain/path');
+    assertTranscodes('scheme://domain:80/path');
+  });
+
+  it('should stringify URIs with schemes, authorities, and queries', function () {
+    assertTranscodes('scheme://domain?query');
+    assertTranscodes('scheme://domain:80?query');
+  });
+
+  it('should stringify URIs with schemes, authorities, and fragments', function () {
+    assertTranscodes('scheme://domain#fragment');
+    assertTranscodes('scheme://domain:80#fragment');
+  });
+
+  it('should stringify URIs with schemes, authorities, paths, and queries', function () {
+    assertTranscodes('scheme://domain/path?query');
+    assertTranscodes('scheme://domain:80/path?query');
+  });
+
+  it('should stringify URIs with schemes, authorities, paths, and fragments', function () {
+    assertTranscodes('scheme://domain/path#fragment');
+    assertTranscodes('scheme://domain:80/path#fragment');
+  });
+
+  it('should stringify URIs with schemes, authorities, paths, queries, and fragments', function () {
+    assertTranscodes('scheme://domain/path?query#fragment');
+    assertTranscodes('scheme://domain:80/path?query#fragment');
+  });
+});
+
+
+describe('URI resolver', function () {
+  it('should resolve normal URI references', function () {
+    var base = uri.parse('http://a/b/c/d;p?q');
+    assert.same(uri.resolve(base, 'g:h'), uri.parse('g:h'));
+    assert.same(uri.resolve(base, 'g'), uri.parse('http://a/b/c/g'));
+    assert.same(uri.resolve(base, './g'), uri.parse('http://a/b/c/g'));
+    assert.same(uri.resolve(base, 'g/'), uri.parse('http://a/b/c/g/'));
+    assert.same(uri.resolve(base, '/g'), uri.parse('http://a/g'));
+    assert.same(uri.resolve(base, '//g'), uri.parse('http://g'));
+    assert.same(uri.resolve(base, '?y'), uri.parse('http://a/b/c/d;p?y'));
+    assert.same(uri.resolve(base, 'g?y'), uri.parse('http://a/b/c/g?y'));
+    assert.same(uri.resolve(base, '#s'), uri.parse('http://a/b/c/d;p?q#s'));
+    assert.same(uri.resolve(base, 'g#s'), uri.parse('http://a/b/c/g#s'));
+    assert.same(uri.resolve(base, 'g?y#s'), uri.parse('http://a/b/c/g?y#s'));
+    assert.same(uri.resolve(base, ';x'), uri.parse('http://a/b/c/;x'));
+    assert.same(uri.resolve(base, 'g;x'), uri.parse('http://a/b/c/g;x'));
+    assert.same(uri.resolve(base, 'g;x?y#s'), uri.parse('http://a/b/c/g;x?y#s'));
+    assert.same(uri.resolve(base, ''), uri.parse('http://a/b/c/d;p?q'));
+    assert.same(uri.resolve(base, '.'), uri.parse('http://a/b/c/'));
+    assert.same(uri.resolve(base, './'), uri.parse('http://a/b/c/'));
+    assert.same(uri.resolve(base, '..'), uri.parse('http://a/b/'));
+    assert.same(uri.resolve(base, '../'), uri.parse('http://a/b/'));
+    assert.same(uri.resolve(base, '../g'), uri.parse('http://a/b/g'));
+    assert.same(uri.resolve(base, '../..'), uri.parse('http://a/'));
+    assert.same(uri.resolve(base, '../../'), uri.parse('http://a/'));
+    assert.same(uri.resolve(base, '../../g'), uri.parse('http://a/g'));
+  });
+
+  it('should resolve abnormal URI references', function () {
+    var base = uri.parse('http://a/b/c/d;p?q');
+
+    assert.same(uri.resolve(base, '../../../g'), uri.parse('http://a/g'));
+    assert.same(uri.resolve(base, '../../../../g'), uri.parse('http://a/g'));
+
+    assert.same(uri.resolve(base, '/./g'), uri.parse('http://a/g'));
+    assert.same(uri.resolve(base, '/../g'), uri.parse('http://a/g'));
+    assert.same(uri.resolve(base, 'g.'), uri.parse('http://a/b/c/g.'));
+    assert.same(uri.resolve(base, '.g'), uri.parse('http://a/b/c/.g'));
+    assert.same(uri.resolve(base, 'g..'), uri.parse('http://a/b/c/g..'));
+    assert.same(uri.resolve(base, '..g'), uri.parse('http://a/b/c/..g'));
+
+    assert.same(uri.resolve(base, './../g'), uri.parse('http://a/b/g'));
+    assert.same(uri.resolve(base, './g/.'), uri.parse('http://a/b/c/g/'));
+    assert.same(uri.resolve(base, 'g/./h'), uri.parse('http://a/b/c/g/h'));
+    assert.same(uri.resolve(base, 'g/../h'), uri.parse('http://a/b/c/h'));
+    assert.same(uri.resolve(base, 'g;x=1/./y'), uri.parse('http://a/b/c/g;x=1/y'));
+    assert.same(uri.resolve(base, 'g;x=1/../y'), uri.parse('http://a/b/c/y'));
+
+    assert.same(uri.resolve(base, 'g?y/./x'), uri.parse('http://a/b/c/g?y/./x'));
+    assert.same(uri.resolve(base, 'g?y/../x'), uri.parse('http://a/b/c/g?y/../x'));
+    assert.same(uri.resolve(base, 'g#s/./x'), uri.parse('http://a/b/c/g#s/./x'));
+    assert.same(uri.resolve(base, 'g#s/../x'), uri.parse('http://a/b/c/g#s/../x'));
+  });
+});
+
+
+describe('URI unresolver', function () {
+  it('should unresolve related URIs', function () {
+    assert.same(uri.unresolve('http://a', 'http://a'), uri.parse(''));
+    assert.same(uri.unresolve('http://a', 'http://a/'), uri.parse('/'));
+    assert.same(uri.unresolve('http://a', 'http://a/c'), uri.parse('c'));
+    assert.same(uri.unresolve('http://a', 'http://a?y'), uri.parse('?y'));
+    assert.same(uri.unresolve('http://a', 'http://a#s'), uri.parse('#s'));
+
+    assert.same(uri.unresolve('http://a/', 'http://a'), uri.parse('/'));
+    assert.same(uri.unresolve('http://a/', 'http://a/'), uri.parse(''));
+    assert.same(uri.unresolve('http://a/', 'http://a/c'), uri.parse('c'));
+    assert.same(uri.unresolve('http://a/', 'http://a?y'), uri.parse('/?y'));
+    assert.same(uri.unresolve('http://a/', 'http://a#s'), uri.parse('/#s'));
+
+    assert.same(uri.unresolve('http://a/b', 'http://a'), uri.parse('/'));
+    assert.same(uri.unresolve('http://a/b', 'http://a/'), uri.parse('/'));
+    assert.same(uri.unresolve('http://a/b', 'http://a/c'), uri.parse('c'));
+    assert.same(uri.unresolve('http://a/b', 'http://a?y'), uri.parse('/?y'));
+    assert.same(uri.unresolve('http://a/b', 'http://a#s'), uri.parse('/#s'));
+
+    assert.same(uri.unresolve('http://a/b', 'http://a/b'), uri.parse(''));
+    assert.same(uri.unresolve('http://a/b', 'http://a/b/'), uri.parse('/'));
+    assert.same(uri.unresolve('http://a/b', 'http://a/b/c'), uri.parse('c'));
+    assert.same(uri.unresolve('http://a/b', 'http://a/b?y'), uri.parse('?y'));
+    assert.same(uri.unresolve('http://a/b', 'http://a/b#s'), uri.parse('#s'));
+
+    assert.same(uri.unresolve('http://a/b/', 'http://a/b'), uri.parse('/b'));
+    assert.same(uri.unresolve('http://a/b/', 'http://a/b/'), uri.parse(''));
+    assert.same(uri.unresolve('http://a/b/', 'http://a/b/c'), uri.parse('c'));
+    assert.same(uri.unresolve('http://a/b/', 'http://a/b?y'), uri.parse('/b?y'));
+    assert.same(uri.unresolve('http://a/b/', 'http://a/b#s'), uri.parse('/b#s'));
+  });
+
+  it('should unresolve unrelated URIs', function () {
+    assert.same(uri.unresolve('http://a', 'https://a'), uri.parse('https://a'));
+    assert.same(uri.unresolve('http://a', 'http://z'), uri.parse('http://z'));
   });
 });
