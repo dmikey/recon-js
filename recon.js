@@ -220,6 +220,92 @@ function equalData(x, y) {
   return true;
 }
 
+function compare(x, y) {
+  if (x === true) x = 'true';
+  else if (x === false) x = 'false';
+  if (y === true) y = 'true';
+  else if (y === false) y = 'false';
+
+  if (x === undefined) {
+    if (y === undefined) return 0;
+    else return 1;
+  }
+  else if (x === null) {
+    if (y === undefined) return -1;
+    else if (y === null) return 0;
+    else return 1;
+  }
+  else if (typeof x === 'number') {
+    if (y === undefined || y === null) return -1;
+    else if (typeof y === 'number') return x < y ? -1 : x > y ? 1 : 0;
+    else return 1;
+  }
+  else if (typeof x === 'string') {
+    if (y === undefined || y === null || typeof y === 'number') return -1;
+    else if (typeof y === 'string') return x < y ? -1 : x > y ? 1 : 0;
+    else return 1;
+  }
+  else if (x instanceof Uint8Array) {
+    if (y === undefined || y === null || typeof y === 'number' || typeof y === 'string') return -1;
+    else if (y instanceof Uint8Array) return compareData(x, y);
+    else return 1;
+  }
+  else if (Array.isArray(x)) {
+    if (y === undefined || y === null || typeof y === 'number' || typeof y === 'string' ||
+        y instanceof Uint8Array) return -1;
+    else if (Array.isArray(y)) return compareRecord(x, y);
+    else return 1;
+  }
+  else {
+    if (y === undefined || y === null || typeof y === 'number' || typeof y === 'string' ||
+        y instanceof Uint8Array || Array.isArray(y)) return -1;
+    else return compareFields(x, y);
+  }
+}
+function compareRecord(x, y) {
+  var p = x.length;
+  var q = y.length;
+  for (var i = 0, n = Math.min(p, q), order = 0; i < n && order === 0; i += 1) {
+    order = compare(x[i], y[i]);
+  }
+  return order !== 0 ? order : p > q ? 1 : p < q ? -1 : 0;
+}
+function compareFields(x, y) {
+  var xKeys = Object.keys(x);
+  var yKeys = Object.keys(y);
+  var p = xKeys.length;
+  var q = yKeys.length;
+  for (var i = 0, n = Math.min(p, q), order = 0; i < n && order === 0; i += 1) {
+    var xKey = xKeys[i];
+    var yKey = yKeys[i];
+    order = compareName(xKey, yKey);
+    if (order === 0) order = compare(x[xKey], y[yKey]);
+  }
+  return order !== 0 ? order : p > q ? 1 : p < q ? -1 : 0;
+}
+function compareName(x, y) {
+  var p = x.length;
+  var q = y.length;
+  if (p > 0 && q > 0) {
+    var x0 = x.charCodeAt(0);
+    var y0 = y.charCodeAt(0);
+    if (x0 === 64/*'@'*/ && y0 !== 64/*'@'*/) return -1;
+    else if (x0 !== 64/*'@'*/ && y0 === 64/*'@'*/) return 1;
+    else return x < y ? -1 : x > y ? 1 : 0;
+  }
+  else if (p > 0) return 1;
+  else if (q > 0) return -1;
+  else return 0;
+}
+function compareData(x, y) {
+  var p = x.length;
+  var q = y.length;
+  for (var i = 0, n = Math.min(p, q), order = 0; i < n && order === 0; i += 1) {
+    order = x[i] - y[i];
+  }
+  return order > 0 ? 1 : order < 0 ? -1 : p > q ? 1 : p < q ? -1 : 0;
+}
+
 function coerce() {
   if (arguments.length === 1) return coerceValue(arguments[0]);
   else if (arguments.length > 1) return coerceRecord(arguments);
@@ -466,6 +552,7 @@ StringIteratee.Done.prototype.state = function () {
 
 StringIteratee.Error = function (error) {
   StringIteratee.call(this);
+  if (typeof error.found === 'number') error.found = String.fromCharCode(error.found);
   this.error = error;
 };
 StringIteratee.Error.prototype = Object.create(StringIteratee.prototype);
@@ -3265,5 +3352,6 @@ exports.get = get;
 exports.set = set;
 exports.concat = concat;
 exports.equal = equal;
+exports.compare = compare;
 exports.uri = uri;
 exports.config = config;

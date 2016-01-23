@@ -15,6 +15,24 @@ assert.same = function (x, y) {
     assert.fail(false, true, recon.stringify(x) + ' did not equal ' + recon.stringify(y));
   }
 };
+assert.orderBefore = function (x, y) {
+  var order = recon.compare(x, y);
+  if (order >= 0) {
+    assert.fail(order, -1, recon.stringify(x) + ' did not order before ' + recon.stringify(y));
+  }
+};
+assert.orderAfter = function (x, y) {
+  var order = recon.compare(x, y);
+  if (order <= 0) {
+    assert.fail(order, 1, recon.stringify(x) + ' did not order after ' + recon.stringify(y));
+  }
+};
+assert.orderSame = function (x, y) {
+  var order = recon.compare(x, y);
+  if (order !== 0) {
+    assert.fail(order, 0, recon.stringify(x) + ' did not order the same as ' + recon.stringify(y));
+  }
+};
 
 
 describe('RECON library', function () {
@@ -172,6 +190,170 @@ describe('RECON library', function () {
 
   it('should expose its build config', function () {
     assert.equal(recon.config.version, pkg.version);
+  });
+});
+
+
+describe('Item ordering', function () {
+  it('Attributes should order by key then by value', function () {
+    assert.orderBefore({'@a': null}, {'@b': null});
+    assert.orderAfter({'@b': null}, {'@a': null});
+    assert.orderBefore({'@a': 0}, {'@a': 1});
+    assert.orderAfter({'@a': 1}, {'@a': 0});
+    assert.orderSame({'@a': null}, {'@a': null});
+    assert.orderSame({'@a': 0}, {'@a': 0});
+  });
+
+  it('Slots should order by key then by value', function () {
+    assert.orderBefore({a: null}, {b: null});
+    assert.orderAfter({b: null}, {a: null});
+    assert.orderBefore({a: 0}, {a: 1});
+    assert.orderAfter({a: 1}, {a: 0});
+    assert.orderSame({a: null}, {a: null});
+    assert.orderSame({a: 0}, {a: 0});
+  });
+
+  it('Records should order by sequential item order', function () {
+    assert.orderBefore([], [1]);
+    assert.orderAfter([1], []);
+    assert.orderBefore([1], [1, 'a']);
+    assert.orderAfter([1, 'a'], [1]);
+    assert.orderBefore([1, 'a'], [1, 'b']);
+    assert.orderAfter([1, 'b'], [1, 'a']);
+    assert.orderBefore([0, 'a'], [1]);
+    assert.orderAfter([1], [0, 'a']);
+    assert.orderSame([], []);
+    assert.orderSame([1], [1]);
+    assert.orderSame([1, 'a'], [1, 'a']);
+  });
+
+  it('Strings should order by sequential character order', function () {
+    assert.orderBefore('', 'a');
+    assert.orderAfter('a', '');
+    assert.orderBefore('a', 'aa');
+    assert.orderAfter('aa', 'a');
+    assert.orderBefore('aa', 'ab');
+    assert.orderAfter('ab', 'aa');
+    assert.orderBefore('ab', 'b');
+    assert.orderAfter('b', 'ab');
+    assert.orderSame('', '');
+    assert.orderSame('a', 'a');
+    assert.orderSame('ab', 'ab');
+  });
+
+  it('Data should order by sequential byte order', function () {
+    assert.orderBefore(base64(''), base64('AA=='));
+    assert.orderAfter(base64('AA=='), base64(''));
+    assert.orderBefore(base64('AA=='), base64('AAA='));
+    assert.orderAfter(base64('AAA='), base64('AA=='));
+    assert.orderBefore(base64('AAA='), base64('AAE='));
+    assert.orderAfter(base64('AAE='), base64('AAA='));
+    assert.orderBefore(base64('AAE='), base64('AQ=='));
+    assert.orderAfter(base64('AQ=='), base64('AAE='));
+    assert.orderSame(base64(''), base64(''));
+    assert.orderSame(base64('AA=='), base64('AA=='));
+    assert.orderSame(base64('AAE='), base64('AAE='));
+  });
+
+  it('Numbers should order numerically', function () {
+    assert.orderBefore(0, 1);
+    assert.orderAfter(1, 0);
+    assert.orderBefore(0.5, 1.0);
+    assert.orderAfter(1.0, 0.5);
+    assert.orderBefore(-1, 1);
+    assert.orderAfter(1, -1);
+    assert.orderSame(0, 0);
+    assert.orderSame(1, 1);
+    assert.orderSame(-1, -1);
+    assert.orderSame(0.5, 0.5);
+  });
+
+  it('Null should order the same as itself', function () {
+    assert.orderSame(null, null);
+  });
+
+  it('Undefined should order the same as itself', function () {
+    assert.orderSame(null, null);
+  });
+
+  it('Attributes should order before slots, records, data, strings, numbers, null, and undefined', function () {
+    assert.orderBefore({'@a': 1}, {a: 1});
+    assert.orderBefore({'@a': 1}, []);
+    assert.orderBefore({'@a': 1}, base64(''));
+    assert.orderBefore({'@a': 1}, '');
+    assert.orderBefore({'@a': 1}, 0);
+    assert.orderBefore({'@a': 1}, null);
+    assert.orderBefore({'@a': 1}, undefined);
+  });
+
+  it('Slots should order after attributes and before records, data, strings, numbers, null, and undefined', function () {
+    assert.orderAfter({a: 1}, {'@a': 1});
+    assert.orderBefore({a: 1}, []);
+    assert.orderBefore({a: 1}, base64(''));
+    assert.orderBefore({a: 1}, '');
+    assert.orderBefore({a: 1}, 0);
+    assert.orderBefore({a: 1}, null);
+    assert.orderBefore({a: 1}, undefined);
+  });
+
+  it('Records should order after attributes and slots, and before data, strings, numbers, null, and undefined', function () {
+    assert.orderAfter([], {'@a': 1});
+    assert.orderAfter([], {a: 1});
+    assert.orderBefore([], base64(''));
+    assert.orderBefore([], '');
+    assert.orderBefore([], 0);
+    assert.orderBefore([], null);
+    assert.orderBefore([], undefined);
+  });
+
+  it('Data should order after attributes, slots, and records, and before strings, numbers, null, and undefined', function () {
+    assert.orderAfter(base64(''), {'@a': 1});
+    assert.orderAfter(base64(''), {a: 1});
+    assert.orderAfter(base64(''), []);
+    assert.orderBefore(base64(''), '');
+    assert.orderBefore(base64(''), 0);
+    assert.orderBefore(base64(''), null);
+    assert.orderBefore(base64(''), undefined);
+  });
+
+  it('Strings should order after attributes, slots, records, and data, and before numbers, null, and undefined', function () {
+    assert.orderAfter('', {'@a': 1});
+    assert.orderAfter('', {a: 1});
+    assert.orderAfter('', []);
+    assert.orderAfter('', base64(''));
+    assert.orderBefore('', 0);
+    assert.orderBefore('', null);
+    assert.orderBefore('', undefined);
+  });
+
+  it('Numbers should order after attributes, slots, records, data, and strings, and before null and undefined', function () {
+    assert.orderAfter(0, {'@a': 1});
+    assert.orderAfter(0, {a: 1});
+    assert.orderAfter(0, []);
+    assert.orderAfter(0, base64(''));
+    assert.orderAfter(0, '');
+    assert.orderBefore(0, null);
+    assert.orderBefore(0, undefined);
+  });
+
+  it('Null should order after attributes, slots, records, data, strings, and numbers, and before undefined', function () {
+    assert.orderAfter(null, {'@a': 1});
+    assert.orderAfter(null, {a: 1});
+    assert.orderAfter(null, []);
+    assert.orderAfter(null, base64(''));
+    assert.orderAfter(null, '');
+    assert.orderAfter(null, 0);
+    assert.orderBefore(null, undefined);
+  });
+
+  it('Undefined should order after attributes, slots, records, data, strings, numbers, and null', function () {
+    assert.orderAfter(undefined, {'@a': 1});
+    assert.orderAfter(undefined, {a: 1});
+    assert.orderAfter(undefined, []);
+    assert.orderAfter(undefined, base64(''));
+    assert.orderAfter(undefined, '');
+    assert.orderAfter(undefined, 0);
+    assert.orderAfter(undefined, null);
   });
 });
 
@@ -750,7 +932,7 @@ describe('RECON parser', function () {
 
 
 describe('RECON serializer', function () {
-  it('should stringify absent values', function () {
+  it('should stringify undefined values', function () {
     assert.equal(stringify(undefined), '');
   });
 

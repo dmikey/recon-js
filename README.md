@@ -334,7 +334,17 @@ Concatenates two RECON valuesinto a single, flattened record.
 
 #### recon.equal(x, y)
 
-Compares two RECON values for equality.
+Compares two RECON items for equality.
+
+#### recon.compare(x, y)
+
+Orders two RECON items relative to each other.  Returns `-1` if `x` comes
+before `y`, returns `1` if `x` comes after `y`, and returns `0` if `x` and `y`
+are equivalent.
+
+RECON defines a total ordering over all items.  Items of different types sort
+in the following relative order: attributes, slots, records, data, text,
+numbers, extant, then absent.
 
 #### recon.uri.parse(string)
 

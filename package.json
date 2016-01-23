@@ -1,6 +1,6 @@
 {
   "name": "recon-js",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Record Notation (RECON) JavaScript Implementation",
   "homepage": "https://github.com/web-aware/recon-js",
   "author": "Chris Sachs <chris@webaware.com>",
