@@ -975,6 +975,10 @@ describe('RECON serializer', function () {
     assert.equal(stringify(base64('ABCDabcd12/+')), '%ABCDabcd12/+');
   });
 
+  it('should stringify data values within records', function () {
+    assert.equal(stringify([base64('AAAA')]), '%AAAA');
+  });
+
   it('should stringify numbers', function () {
     assert.equal(stringify(0), '0');
     assert.equal(stringify(1), '1');

@@ -27,7 +27,7 @@ function base64(string) {
 }
 
 function isRecord(item) {
-  return Array.isArray(item);
+  return Array.isArray(item) && !(item instanceof Uint8Array);
 }
 
 function isObject(item) {
@@ -35,7 +35,7 @@ function isObject(item) {
 }
 
 function isField(item) {
-  return item !== null && typeof item === 'object' && !Array.isArray(item);
+  return item !== null && typeof item === 'object' && !Array.isArray(item) && !(item instanceof Uint8Array);
 }
 
 function isAttr(item) {
@@ -1684,12 +1684,12 @@ function ReconWriter(builder) {
   this.builder = builder || new StringBuilder();
 }
 ReconWriter.prototype.writeValue = function (value) {
-  if (isRecord(value)) this.writeRecord(value);
-  else if (isObject(value)) this.writeRecord(coerceObject(value));
-  else if (typeof value === 'string') this.writeText(value);
+  if (typeof value === 'string') this.writeText(value);
   else if (typeof value === 'number') this.writeNumber(value);
   else if (typeof value === 'boolean') this.writeBool(value);
   else if (value instanceof Uint8Array) this.writeData(value);
+  else if (isRecord(value)) this.writeRecord(value);
+  else if (isObject(value)) this.writeRecord(coerceObject(value));
 };
 ReconWriter.prototype.writeItem = function (item) {
   if (isField(item)) this.writeSlots(item);
