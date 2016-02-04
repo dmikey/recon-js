@@ -1,13 +1,29 @@
 # Record Notation (RECON)
 
-[![Build Status](https://travis-ci.org/web-aware/recon-js.svg?branch=master)](https://travis-ci.org/web-aware/recon-js) [![Coverage Status](https://coveralls.io/repos/web-aware/recon-js/badge.svg?branch=master)](https://coveralls.io/r/web-aware/recon-js?branch=master)
+[![Build Status](https://travis-ci.org/swimit/recon-js.svg?branch=master)](https://travis-ci.org/swimit/recon-js) [![Coverage Status](https://coveralls.io/repos/swimit/recon-js/badge.svg?branch=master)](https://coveralls.io/r/swimit/recon-js?branch=master)
 
 RECON brings attributes into the era of object notation, and provides a simple
 grammar and uniform tree model for attributed text markup.  RECON aims to
 combine the minimalism of JSON with the expressiveness of XML in a
 human-friendly syntax.
 
-## Language Quick Start
+## Getting Started
+
+The RECON JavaScript library has no dependencies, and can run in any standard
+JavaScript environment.  Use `npm` to incorporate the RECON JavaScript library
+into Node.js projects.
+
+```
+npm install --save recon-js
+```
+
+```js
+var recon = require('recon-js');
+
+var record = recon.parse('[Welcome @a(href:"index.html")@em[home].]');
+```
+
+## Language Primer
 
 ### Primtives
 
@@ -274,69 +290,53 @@ RECON: [Hello, @em[world]!]
 JSON:  ["Hello, ", [{"@em": null}, "world"], "!"]
 ```
 
-## JavaScript Library
+## JavaScript API
 
-The RECON JavaScript library has no dependencies, and can run in any standard
-JavaScript environment.  Use `npm` to incorporate the RECON JavaScript library
-into Node.js projects.
-
-```
-npm install --save recon-js
-```
-
-```js
-var recon = require('recon-js');
-
-var record = recon.parse('[Welcome @a(href:"index.html")@em[home].]');
-```
-
-### JavaScript API
-
-#### recon(value)
+### recon(value)
 
 Normalizes a RECON value, ensuring that a record's array representation
 matches its object representation.
 
-#### recon.parse(string)
+### recon.parse(string)
 
 Parses a string for a RECON value.
 
-#### recon.stringify(value)
+### recon.stringify(value)
 
 Serializes a JavaScript value as a RECON string.
 
-#### recon.base64(string)
+### recon.base64(string)
 
 Base64-decodes a `string` into a `Uint8Array`.
 
-#### recon.head(value)
+### recon.head(value)
 
 Returns the first value or field value, if `value` is a record.  Returns
 `value` itself if `value` is not a record.
 
-#### recon.tag(value)
+### recon.tag(value)
 
 Returns the key of the head field, if `value` is a record and its head value
 is a field.  Otherwise returns `undefined`.
 
-#### recon.get(key, value)
+### recon.get(key, value)
 
 Returns the record value associated with a key object.
 
-#### recon.set(record, key, value)
+### recon.set(record, key, value)
 
 Updates a record field, keeping its array representation consistent with its
 object representation.
 
-#### recon.concat(x, y)
+### recon.concat(x, y)
 
 Concatenates two RECON valuesinto a single, flattened record.
 
-#### recon.equal(x, y)
+### recon.equal(x, y)
 
 Compares two RECON items for equality.
 
-#### recon.compare(x, y)
+### recon.compare(x, y)
 
 Orders two RECON items relative to each other.  Returns `-1` if `x` comes
 before `y`, returns `1` if `x` comes after `y`, and returns `0` if `x` and `y`
@@ -346,7 +346,7 @@ RECON defines a total ordering over all items.  Items of different types sort
 in the following relative order: attributes, slots, records, data, text,
 numbers, extant, then absent.
 
-#### recon.uri.parse(string)
+### recon.uri.parse(string)
 
 Parses a URI string into a structured URI object.  Parsed URIs have the
 following structure:
@@ -368,7 +368,7 @@ If a URI string has an undefined component, then the corresponding field of
 the parsed URI object will also be undefined.  Query arrays have a
 corresponding field member set for each key-value parameter.
 
-##### Examples
+#### Examples
 
 ```js
 recon.uri.parse('http://example.com');
@@ -400,16 +400,16 @@ recon.uri.parse('http://user:pass@example.com');
 
 ```
 
-#### recon.uri.stringify(uri)
+### recon.uri.stringify(uri)
 
 Serializes a parsed URI object as a URI string.
 
-#### recon.uri.resolve(base, relative)
+### recon.uri.resolve(base, relative)
 
 Returns the parsed absolute URI obtained by resolving a relative URI against
 some base URI;
 
-#### recon.uri.unresolve(base, absolute)
+### recon.uri.unresolve(base, absolute)
 
 Returns the parsed relative URI obtained by unresolving an absolute URI against
 some base URI.
