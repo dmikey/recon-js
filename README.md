@@ -309,10 +309,20 @@ Serializes a JavaScript value as a RECON string.
 
 Base64-decodes a `string` into a `Uint8Array`.
 
+### recon.size(value)
+
+Returns the number of items in `value`, if `value` is a record.  Returns `0`
+if `value` is not a record.
+
 ### recon.head(value)
 
 Returns the first value or field value, if `value` is a record.  Returns
 `value` itself if `value` is not a record.
+
+### recon.tail(value)
+
+Returns a record containing all but the first item of `value`, if `value` is a
+record.  Returns an empty record if `value` is not a record.
 
 ### recon.tag(value)
 
@@ -335,6 +345,26 @@ representation consistent with its object representation.
 ### recon.remove(record, key)
 
 Removes any field with the given `key` from some `record`.
+
+### recon.keys(value)
+
+Returns an array containing the field keys of `value`, if `value` is a record.
+Returns an empty array if `value` is not a record.
+
+### recon.values(value)
+
+Returns an array containing the field and item values of `value`, if `value`
+is a record.  Returns an empty array if `value` is not a record.
+
+### recon.forEach(record, callback[, thisArg])
+
+Invokes `callback` for every item in `record`.  If provided, `thisArg` will
+be passed to each invocation of `callback` for use as its `this` value.
+
+`callback` is invoked with three arguments:
+- the item value, if the item is a field, otherwise the item itself
+- the item key, if the item is a field, otherwise `undefined`
+- the record being traversed
 
 ### recon.concat(x, y)
 

@@ -12,7 +12,7 @@ var uri = recon.uri;
 
 assert.same = function (x, y) {
   if (!recon.equal(x, y)) {
-    assert.fail(false, true, recon.stringify(x) + ' did not equal ' + recon.stringify(y));
+    assert.fail(x, y, recon.stringify(x) + ' did not equal ' + recon.stringify(y));
   }
 };
 assert.orderBefore = function (x, y) {
@@ -115,6 +115,33 @@ describe('RECON library', function () {
     assert.equal(recon.tag(undefined), undefined);
   });
 
+  it('should return the size of records', function () {
+    assert.equal(recon.size(parse('{}')), 0);
+    assert.equal(recon.size(parse('{1}')), 1);
+    assert.equal(recon.size(parse('{1,2}')), 2);
+    assert.equal(recon.size(parse('1,2,3')), 3);
+    assert.equal(recon.size(parse('@a')), 1);
+    assert.equal(recon.size(parse('@a@b')), 2);
+    assert.equal(recon.size(parse('@a@b c')), 3);
+    assert.equal(recon.size(parse('@a{b:c}')), 2);
+    assert.equal(recon.size(parse('@a{b:c,d}')), 3);
+  });
+
+  it('should return the size of objects', function () {
+    assert.equal(recon.size({}), 0);
+    assert.equal(recon.size({a: 1}), 1);
+    assert.equal(recon.size({a: 1, b: 2}), 2);
+    assert.equal(recon.size({a: 1, b: 2, c: 3}), 3);
+  });
+
+  it('should return the size of values', function () {
+    assert.equal(recon.size('text'), 0);
+    assert.equal(recon.size(true), 0);
+    assert.equal(recon.size(0.5), 0);
+    assert.equal(recon.size(null), 0);
+    assert.equal(recon.size(undefined), 0);
+  });
+
   it('should have ident keyed record slots', function () {
     var record = parse('1,foo:bar, 3');
     assert(recon.has(record, 'foo'));
@@ -188,6 +215,109 @@ describe('RECON library', function () {
     var record = [1, {$key: [{'@planet': null}], $value: 'Neptune'}, 3];
     recon.remove(record, [{'@planet': null}]);
     assert.same(record, [1, 3]);
+  });
+
+  it('should return the ident keys of records', function () {
+    assert.same(recon.keys([]), []);
+    assert.same(recon.keys([{a: 1}]), ['a']);
+    assert.same(recon.keys([1, {b: 2}, 3, {c: 4}]), ['b', 'c']);
+  });
+
+  it('should return the value keys of records', function () {
+    assert.same(
+      recon.keys([{$key: [{'@planet': 'Neptune'}], $value: 'exists'}, 2, {c: 3}]),
+      [[{'@planet': 'Neptune'}], 'c']);
+  });
+
+  it('should return the ident keys of objects', function () {
+    assert.same(recon.keys({}), []);
+    assert.same(recon.keys({a: 1}), ['a']);
+    assert.same(recon.keys({a: 1, b: 2}), ['a', 'b']);
+  });
+
+  it('should return empty keys for values', function () {
+    assert.same(recon.keys('text'), []);
+    assert.same(recon.keys(true), []);
+    assert.same(recon.keys(0.5), []);
+    assert.same(recon.keys(null), []);
+    assert.same(recon.keys(undefined), []);
+  });
+
+  it('should return the values of records', function () {
+    assert.same(recon.values([]), []);
+    assert.same(recon.values([1]), [1]);
+    assert.same(recon.values([1, 2]), [1, 2]);
+    assert.same(recon.values([{a: 1}, 2, {b: 3}]), [1, 2, 3]);
+    assert.same(
+      recon.values([{$key: [{'@planet': 'Neptune'}], $value: [{'@gas': null}, 'giant']}, 'b', {c: 3}]),
+      [[{'@gas': null}, 'giant'], 'b', 3]);
+  });
+
+  it('should return empty values for values', function () {
+    assert.same(recon.values('text'), []);
+    assert.same(recon.values(true), []);
+    assert.same(recon.values(0.5), []);
+    assert.same(recon.values(null), []);
+    assert.same(recon.values(undefined), []);
+  });
+
+  it('should traverse records', function () {
+    var record = [1, {b: 2}, [{'@planet': null}, 'Neptune'], {d: 4}];
+    var i = 0;
+    recon.forEach(record, function (value, key) {
+      if (i === 0) {
+        assert.same(value, 1);
+        assert.same(key, undefined);
+      }
+      else if (i === 1) {
+        assert.same(value, 2);
+        assert.same(key, 'b');
+      }
+      else if (i === 2) {
+        assert.same(value, [{'@planet': null}, 'Neptune']);
+        assert.same(key, undefined);
+      }
+      else if (i === 3) {
+        assert.same(value, 4);
+        assert.same(key, 'd');
+      }
+      else {
+        assert(false);
+      }
+      i += 1;
+    });
+  });
+
+  it('should traverse objects', function () {
+    var record = {a: 1, b: 2, c: 3};
+    var i = 0;
+    recon.forEach(record, function (value, key) {
+      assert.equal(this, record);
+      if (i === 0) {
+        assert.same(value, 1);
+        assert.same(key, 'a');
+      }
+      else if (i === 1) {
+        assert.same(value, 2);
+        assert.same(key, 'b');
+      }
+      else if (i === 2) {
+        assert.same(value, 3);
+        assert.same(key, 'c');
+      }
+      else {
+        assert(false);
+      }
+      i += 1;
+    }, record);
+  });
+
+  it('should traverse values', function () {
+    recon.forEach('text', function () { assert(false); });
+    recon.forEach(true, function () { assert(false); });
+    recon.forEach(0.5, function () { assert(false); });
+    recon.forEach(null, function () { assert(false); });
+    recon.forEach(undefined, function () { assert(false); });
   });
 
   it('should concat two values', function () {

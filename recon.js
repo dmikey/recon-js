@@ -66,6 +66,12 @@ function isMarkupSafe(record) {
   return true;
 }
 
+function size(value) {
+  if (isRecord(value)) return value.length;
+  else if (isObject(value)) return Object.keys(value).length;
+  else return 0;
+}
+
 function head(value) {
   if (isRecord(value)) {
     var header = value[0];
@@ -117,7 +123,7 @@ function get(record, key) {
     if (value !== undefined) return value;
     for (i = 0, n = record.length; i < n; i += 1) {
       item = record[i];
-      if (isObject(item)) {
+      if (isField(item)) {
         if (item[key] !== undefined) return item[key];
         else if (equal(item.$key, key)) return item.$value;
       }
@@ -126,7 +132,7 @@ function get(record, key) {
   else {
     for (i = 0, n = record.length; i < n; i += 1) {
       item = record[i];
-      if (isObject(item)) {
+      if (isField(item)) {
         if (equal(item.$key, key)) return item.$value;
       }
     }
@@ -142,7 +148,7 @@ function setRecord(record, key, value) {
   var field;
   for (var i = 0, n = record.length; i < n; i += 1) {
     var item = record[i];
-    if (isObject(item)) {
+    if (isField(item)) {
       if (item[key] !== undefined) {
         item[key] = value;
         updated = true;
@@ -185,9 +191,10 @@ function remove(record, key) {
 function removeRecord(record, key) {
   for (var i = 0, n = record.length; i < n; i += 1) {
     var item = record[i];
-    if (isObject(item)) {
+    if (isField(item)) {
       if (item[key] !== undefined) {
         delete item[key];
+        delete record[key];
         if (Object.keys(item).length === 0) {
           record.splice(i, 1);
           i -= 1;
@@ -205,6 +212,88 @@ function removeRecord(record, key) {
 function removeObject(record, key) {
   if (typeof key === 'string') {
     delete record[key];
+  }
+}
+
+function keys(record) {
+  if (isRecord(record)) {
+    var keys = [];
+    for (var i = 0, n = record.length; i < n; i += 1) {
+      var item = record[i];
+      if (isField(item)) {
+        var key = item.$key;
+        if (key !== undefined) keys.push(key);
+        else Array.prototype.push.apply(keys, Object.keys(item));
+      }
+    }
+    return keys;
+  }
+  else if (isObject(record)) {
+    return Object.keys(record);
+  }
+  else {
+    return [];
+  }
+}
+
+function values(record) {
+  var values = [];
+  var key;
+  if (isRecord(record)) {
+    for (var i = 0, n = record.length; i < n; i += 1) {
+      var item = record[i];
+      if (isField(item)) {
+        key = item.$key;
+        if (key !== undefined) {
+          values.push(item.$value);
+        }
+        else {
+          for (key in item) {
+            values.push(item[key]);
+          }
+        }
+      }
+      else {
+        values.push(item);
+      }
+    }
+  }
+  else if (isObject(record)) {
+    for (key in record) {
+      values.push(record[key]);
+    }
+  }
+  return values;
+}
+
+function forEach(record, callback, thisArg) {
+  var key, value;
+  if (isRecord(record)) {
+    for (var i = 0, n = record.length; i < n; i += 1) {
+      var item = record[i];
+      if (isField(item)) {
+        key = item.$key;
+        if (key !== undefined) {
+          value = item.$value;
+          callback.call(thisArg, value, key, record);
+        }
+        else {
+          for (key in item) {
+            value = item[key];
+            callback.call(thisArg, value, key, record);
+          }
+        }
+      }
+      else {
+        callback.call(thisArg, item, undefined, record);
+      }
+    }
+  }
+  else if (isObject(record)) {
+    for (key in record) {
+      value = record[key];
+      callback.call(thisArg, value, key, record);
+    }
   }
 }
 
@@ -3379,6 +3468,7 @@ exports.parse = parse;
 exports.stringify = stringify;
 exports.base64 = base64;
 exports.isRecord = isRecord;
+exports.size = size;
 exports.head = head;
 exports.tail = tail;
 exports.tag = tag;
@@ -3386,6 +3476,9 @@ exports.has = has;
 exports.get = get;
 exports.set = set;
 exports.remove = remove;
+exports.keys = keys;
+exports.values = values;
+exports.forEach = forEach;
 exports.concat = concat;
 exports.equal = equal;
 exports.compare = compare;
