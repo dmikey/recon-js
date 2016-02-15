@@ -106,6 +106,10 @@ function tag(value) {
   else if (isObject(value)) return Object.keys(value)[0];
 }
 
+function has(record, key) {
+  return get(record, key) !== undefined;
+}
+
 function get(record, key) {
   var i, n, item, value;
   if (typeof key === 'string') {
@@ -171,6 +175,36 @@ function setRecord(record, key, value) {
 function setObject(record, key, value) {
   if (typeof key === 'string') {
     record[key] = value;
+  }
+}
+
+function remove(record, key) {
+  if (isRecord(record)) removeRecord(record, key);
+  else if (isObject(record)) removeObject(record, key);
+}
+function removeRecord(record, key) {
+  for (var i = 0, n = record.length; i < n; i += 1) {
+    var item = record[i];
+    if (isObject(item)) {
+      if (item[key] !== undefined) {
+        delete item[key];
+        if (Object.keys(item).length === 0) {
+          record.splice(i, 1);
+          i -= 1;
+          n -= 1;
+        }
+      }
+      else if (equal(item.$key, key)) {
+        record.splice(i, 1);
+        i -= 1;
+        n -= 1;
+      }
+    }
+  }
+}
+function removeObject(record, key) {
+  if (typeof key === 'string') {
+    delete record[key];
   }
 }
 
@@ -3348,8 +3382,10 @@ exports.isRecord = isRecord;
 exports.head = head;
 exports.tail = tail;
 exports.tag = tag;
+exports.has = has;
 exports.get = get;
 exports.set = set;
+exports.remove = remove;
 exports.concat = concat;
 exports.equal = equal;
 exports.compare = compare;

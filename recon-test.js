@@ -115,6 +115,42 @@ describe('RECON library', function () {
     assert.equal(recon.tag(undefined), undefined);
   });
 
+  it('should have ident keyed record slots', function () {
+    var record = parse('1,foo:bar, 3');
+    assert(recon.has(record, 'foo'));
+    assert(!recon.has(record, 'bar'));
+  });
+
+  it('should have ident keyed record attributes', function () {
+    var record = parse('1 @foo(bar) 3');
+    assert(recon.has(record, '@foo'));
+    assert(!recon.has(record, 'bar'));
+  });
+
+  it('should have value keyed record slots', function () {
+    var record = parse('1,@planet Neptune: exists,3');
+    assert(recon.has(record, parse('@planet Neptune')));
+    assert(!recon.has(record, parse('@planet Pluto')));
+  });
+
+  it('should get ident keyed record slots', function () {
+    var record = parse('1,foo:bar, 3');
+    assert.same(recon.get(record, 'foo'), 'bar');
+    assert.same(recon.get(record, 'bar'), undefined);
+  });
+
+  it('should get ident keyed record attributes', function () {
+    var record = parse('1 @foo(bar) 3');
+    assert.same(recon.get(record, '@foo'), 'bar');
+    assert.same(recon.get(record, 'bar'), undefined);
+  });
+
+  it('should get value keyed record slots', function () {
+    var record = parse('1,@planet Neptune: exists,3');
+    assert.same(recon.get(record, parse('@planet Neptune')), 'exists');
+    assert.same(recon.get(record, parse('@planet Pluto')), undefined);
+  });
+
   it('should set ident keyed record slots', function () {
     var record = [1, {foo: 'bar'}, 3];
     recon.set(record, 'foo', 'baz');
@@ -134,6 +170,24 @@ describe('RECON library', function () {
     recon.set(record, [{'@planet': null}], 'Pluto');
     assert.same(record, [1, {$key: [{'@planet': null}], $value: 'Pluto'}, 3]);
     assert.equal(recon.get(record, [{'@planet': null}]), 'Pluto');
+  });
+
+  it('should remove ident keyed record slots', function () {
+    var record = [1, {foo: 'bar'}, 3];
+    recon.remove(record, 'foo');
+    assert.same(record, [1, 3]);
+  });
+
+  it('should remove ident keyed record attributes', function () {
+    var record = [1, {'@hello': 'there'}, 3];
+    recon.remove(record, '@hello');
+    assert.same(record, [1, 3]);
+  });
+
+  it('should remove value keyed record slots', function () {
+    var record = [1, {$key: [{'@planet': null}], $value: 'Neptune'}, 3];
+    recon.remove(record, [{'@planet': null}]);
+    assert.same(record, [1, 3]);
   });
 
   it('should concat two values', function () {

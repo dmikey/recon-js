@@ -44,7 +44,7 @@ function generatedConfig() {
   var config = {
     version: pkg.version,
   };
-  fs.writeFileSync(configFile, JSON.stringify(config));
+  fs.writeFileSync(configFile, JSON.stringify(config) + '\n');
   return gulp.src(configFile);
 }
 

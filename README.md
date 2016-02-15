@@ -319,14 +319,22 @@ Returns the first value or field value, if `value` is a record.  Returns
 Returns the key of the head field, if `value` is a record and its head value
 is a field.  Otherwise returns `undefined`.
 
-### recon.get(key, value)
+### recon.has(record, key)
 
-Returns the record value associated with a key object.
+Returns `true` if some `record` has a value associated with a `key`.
+
+### recon.get(record, key)
+
+Returns the value associated with a `key` in some `record`.
 
 ### recon.set(record, key, value)
 
-Updates a record field, keeping its array representation consistent with its
-object representation.
+Associates a `value` with a `key` in some `record`, keeping the record's array
+representation consistent with its object representation.
+
+### recon.remove(record, key)
+
+Removes any field with the given `key` from some `record`.
 
 ### recon.concat(x, y)
 
