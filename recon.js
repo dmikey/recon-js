@@ -140,6 +140,7 @@ function get(record, key) {
 }
 
 function set(record, key, value) {
+  value = coerceValue(value);
   if (isRecord(record)) setRecord(record, key, value);
   else if (isObject(record)) setObject(record, key, value);
 }
@@ -165,11 +166,7 @@ function setRecord(record, key, value) {
       field[key] = value;
       record.push(field);
     }
-    Object.defineProperty(record, key, {
-      value: value,
-      enumerable: false,
-      configurable: true,
-      writable: true});
+    record[key] = value;
   }
   else if (!updated) {
     field = {};
@@ -447,8 +444,8 @@ function coerceRecord(items) {
   var keys = Object.keys(items);
   for (i = 0, n = keys.length; i < n; i += 1) {
     var key = keys[i];
-    if (isNaN(parseInt(key))) {
-      var value = record[key];
+    if (isNaN(parseInt(key)) && key.length > 0 && key.charCodeAt(0) !== 36/*'$'*/) {
+      var value = coerceValue(items[key]);
       set(record, key, value);
     }
   }
@@ -460,15 +457,11 @@ function coerceObject(fields) {
   var record = new Array(n);
   for (var i = 0; i < n; i += 1) {
     var key = keys[i];
-    var value = fields[key];
+    var value = coerceValue(fields[key]);
     var field = {};
     field[key] = value;
     record[i] = field;
-    Object.defineProperty(record, key, {
-      value: value,
-      enumerable: false,
-      configurable: true,
-      writable: true});
+    record[key] = value;
   }
   return record;
 }
@@ -494,11 +487,7 @@ RecordBuilder.prototype.appendField = function (key, value) {
   if (typeof key === 'string') {
     field[key] = value;
     this.items.push(field);
-    Object.defineProperty(this.items, key, {
-      value: value,
-      enumerable: false,
-      configurable: true,
-      writable: true});
+    this.items[key] = value;
   }
   else {
     field.$key = key;
@@ -547,11 +536,7 @@ ValueBuilder.prototype.appendField = function (key, value) {
   if (typeof key === 'string') {
     field[key] = value;
     this.items.push(field);
-    Object.defineProperty(this.items, key, {
-      value: value,
-      enumerable: false,
-      configurable: true,
-      writable: true});
+    this.items[key] = value;
   }
   else {
     field.$key = key;
