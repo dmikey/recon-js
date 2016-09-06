@@ -1960,7 +1960,7 @@ ReconWriter.prototype.writeItems = function (items, inBlock, inMarkup) {
     }
   }
   if (inBraces) this.builder.append(125/*'}'*/);
-  else if (inBrackets) this.builder.append(93/*']'*/);
+  if (inBrackets) this.builder.append(93/*']'*/);
 };
 ReconWriter.prototype.isIdent = function (text) {
   var cs = new StringIterator(text);
@@ -2006,6 +2006,11 @@ ReconWriter.prototype.writeMarkupText = function (text) {
       case 93/*']'*/:
       case 123/*'{'*/:
       case 125/*'}'*/: this.builder.append(92/*'\\'*/); this.builder.append(c); break;
+      case 8/*'\b'*/: this.builder.append(92/*'\\'*/); this.builder.append(98/*'b'*/); break;
+      case 12/*'\f'*/: this.builder.append(92/*'\\'*/); this.builder.append(102/*'f'*/); break;
+      case 10/*'\n'*/: this.builder.append(92/*'\\'*/); this.builder.append(110/*'n'*/); break;
+      case 13/*'\r'*/: this.builder.append(92/*'\\'*/); this.builder.append(114/*'r'*/); break;
+      case 9/*'\t'*/: this.builder.append(92/*'\\'*/); this.builder.append(116/*'t'*/); break;
       default: this.builder.append(c);
     }
     cs.step();
