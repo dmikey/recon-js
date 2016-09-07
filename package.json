@@ -1,6 +1,6 @@
 {
   "name": "recon-js",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "Record Notation (RECON) JavaScript Implementation",
   "homepage": "https://github.com/swimit/recon-js",
   "author": "Chris Sachs <chris@swim.it>",
