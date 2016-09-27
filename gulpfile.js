@@ -32,7 +32,7 @@ var debug = args.debug || devel; // --devel implies --debug
 
 var configFile = './config.json';
 var main = './recon.js';
-var scripts = [main];
+var scripts = [main, './src/*.js'];
 var tests = ['./recon-test.js'];
 var sources = scripts.concat(tests);
 
