@@ -1,5 +1,9 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var DataBuilder = require('./databuilder');
+var isBase64Char = require('./isbase64char');
+
 function DataParser(data, s) {
   StringIteratee.call(this);
   this.data = data || null;

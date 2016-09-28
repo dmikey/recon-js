@@ -1,5 +1,7 @@
 'use strict';
 
+var compare = require('./compare');
+
 function compareRecord(x, y) {
   var p = x.length;
   var q = y.length;

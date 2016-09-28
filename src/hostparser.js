@@ -1,5 +1,9 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var HostLiteralParser = require('./hostliteralparser');
+var HostAddressParser = require('./hostaddressparser');
+
 function HostParser() {
   StringIteratee.call(this);
 }

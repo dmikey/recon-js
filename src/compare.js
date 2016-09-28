@@ -1,5 +1,9 @@
 'use strict';
 
+var compareData = require('./comparedata');
+var compareRecord = require('./comparerecord');
+var compareFields = require('./comparefields');
+
 function compare(x, y) {
   if (x === true) x = 'true';
   else if (x === false) x = 'false';

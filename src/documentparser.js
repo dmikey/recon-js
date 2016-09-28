@@ -1,5 +1,8 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var BlockParser = require('./blockparser');
+
 function DocumentParser(value) {
   StringIteratee.call(this);
   this.value = value || new BlockParser();

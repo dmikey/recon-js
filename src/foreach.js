@@ -1,5 +1,9 @@
 'use strict';
 
+var isRecord = require('./isrecord');
+var isField = require('./isfield');
+var isObject = require('./isobject');
+
 function forEach(record, callback, thisArg) {
   var key, value;
   if (isRecord(record)) {

@@ -1,5 +1,10 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var UserInfoParser = require('./userinfoparser');
+var HostParser = require('./hostparser');
+var PortParser = require('./portparser');
+
 function AuthorityParser(userInfo, host, port, s) {
   StringIteratee.call(this);
   this.userInfo = userInfo || null;

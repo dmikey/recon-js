@@ -1,5 +1,7 @@
 'use strict';
 
+var equal = require('./equal');
+
 function equalFields(x, y) {
   var xKeys = Object.keys(x);
   var yKeys = Object.keys(y);

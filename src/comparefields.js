@@ -1,5 +1,8 @@
 'use strict';
 
+var compareName = require('./comparename');
+var compare = require('./compare');
+
 function compareFields(x, y) {
   var xKeys = Object.keys(x);
   var yKeys = Object.keys(y);

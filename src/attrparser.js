@@ -1,5 +1,11 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var BlockParser = require('./blockparser');
+var IdentParser = require('./identparser');
+var StringBuilder = require('./stringbuilder');
+var isWhitespace = require('./iswhitespace');
+
 function AttrParser(ident, value, s) {
   StringIteratee.call(this);
   this.ident = ident || null;

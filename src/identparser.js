@@ -1,5 +1,9 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var isNameStartChar = require('./isnamestartchar');
+var StringBuilder = require('./stringbuilder');
+var isNameChar = require('./isnamechar');
 
 function IdentParser(builder, s) {
   StringIteratee.call(this);

@@ -1,5 +1,9 @@
 'use strict';
 
+var RecordBuilder = require('./recordbuilder');
+var isRecord = require('./isrecord');
+var isObject = require('./isobject');
+
 function concat(x, y) {
   var builder = new RecordBuilder();
   if (isRecord(x)) builder.appendRecord(x);

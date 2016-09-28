@@ -1,5 +1,11 @@
 'use strict';
 
+ var StringIteratee = require('./stringiteratee');
+ var StringBuilder = require('./stringbuilder');
+ var isFragmentChar = require('./isfragmentchar');
+ var isHexChar = require('./ishexchar');
+ var decodeHex = require('./decodehex');
+
 function FragmentParser(builder, c1, s) {
   StringIteratee.call(this);
   this.builder = builder || null;

@@ -1,5 +1,7 @@
 'use strict';
 
+var equal = require('./equal');
+
 function equalRecord(x, y) {
   var n = x.length;
   if (n !== y.length) return false;

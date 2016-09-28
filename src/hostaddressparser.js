@@ -1,5 +1,14 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var StringBuilder = require('./stringbuilder');
+var isDigit = require('./isdigit');
+var decodeDigit = require('./decodedigit');
+var isHostChar = require('./ishostchar');
+var toLowerCase = require('./tolowercase');
+var isHexChar = require('./ishexchar');
+var decodeHex = require('./decodehex');
+
 function HostAddressParser(builder, c1, x, s) {
   StringIteratee.call(this);
   this.builder = builder || null;

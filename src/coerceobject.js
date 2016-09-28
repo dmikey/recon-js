@@ -1,5 +1,7 @@
 'use strict';
 
+var coerceValue = require('./coercevalue');
+
 function coerceObject(fields) {
   var keys = Object.keys(fields);
   var n = keys.length;

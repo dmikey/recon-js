@@ -1,5 +1,8 @@
 'use strict';
 
+var isField = require('./isfield');
+var equal = require('./equal');
+
 function get(record, key) {
   var i, n, item, value;
   if (typeof key === 'string') {

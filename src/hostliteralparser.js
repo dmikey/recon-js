@@ -1,5 +1,10 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var StringBuilder = require('./stringbuilder');
+var isHostChar = require('./ishostchar');
+var toLowerCase = require('./tolowercase');
+
 function HostLiteralParser(builder, s) {
   StringIteratee.call(this);
   this.builder = builder || null;

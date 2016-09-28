@@ -1,5 +1,8 @@
 'use strict';
 
+var coerceValue = require('./coercevalue');
+var set = require('./set');
+
 function coerceRecord(items) {
   var record = [];
   var i, n;
