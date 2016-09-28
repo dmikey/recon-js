@@ -6,4 +6,4 @@ function isAlpha(c) {
     c >= 97/*'a'*/ && c <= 122/*'z'*/);
 }
 
-module.exports = isALpha;
+module.exports = isAlpha;

@@ -1,5 +1,7 @@
 'use strict';
 
+var isField = require('./isfield');
+
 function isAttr(item) {
   if (!isField(item)) return false;
   var keys = Object.keys(item);

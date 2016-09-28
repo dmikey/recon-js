@@ -7,4 +7,4 @@ function isHexChar(c) {
     c >= 48/*'0'*/ && c <= 57/*'9'*/);
 }
 
-module.exports = ishexchar;
+module.exports = isHexChar;

@@ -1,5 +1,8 @@
 'use strict';
 
+var isField = require('./isfield');
+var equal = require('./equal');
+
 function removeRecord(record, key) {
   for (var i = 0, n = record.length; i < n; i += 1) {
     var item = record[i];

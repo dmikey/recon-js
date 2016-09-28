@@ -1,6 +1,6 @@
 'use strict';
 
-
+var isField = require('./isfield');
 
 function RecordBuilder() {
   this.items = [];

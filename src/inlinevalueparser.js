@@ -1,6 +1,10 @@
 'use strict';
 
-
+var StringIteratee = require('./stringiteratee');
+var AttrParser = require('./attrparser');
+var RecordParser = require('./recordparser');
+var MarkupParser = require('./markupparser');
+var ValueBuilder = require('./valuebuilder');
 
 function InlineValueParser(builder, field, value, s) {
   StringIteratee.call(this);

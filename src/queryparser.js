@@ -1,5 +1,11 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var StringBuilder = require('./stringbuilder');
+var isParamChar = require('./isparamchar');
+var isHexChar = require('./ishexchar');
+var decodeHex = require('./decodehex');
+
 function QueryParser(key, value, query, c1, s) {
   StringIteratee.call(this);
   this.key = key || null;

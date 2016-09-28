@@ -1,5 +1,8 @@
 'use strict';
 
+var isUnreservedChar = require('./isunreservedchar');
+var isSubDelimChar = require('./issubdelimchar');
+
 function isFragmentChar(c) {
   return (
     isUnreservedChar(c) ||

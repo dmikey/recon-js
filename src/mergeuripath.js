@@ -1,5 +1,7 @@
 'use strict';
 
+var mergePath = require('./mergepath');
+
 function mergeUriPath(base, relativePath) {
   if (base.authority && (!base.path || !base.path.length)) {
     var segments = relativePath.slice();

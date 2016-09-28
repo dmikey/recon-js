@@ -1,5 +1,12 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var RecordBuilder = require('./recordbuilder');
+var isWhitespace = require('./iswhitespace');
+var BlockValueParser = require('./blockvalueparser');
+var isSpace = require('./isspace');
+var isNewline = require('./isnewline');
+
 function RecordParser(builder, key, value, s) {
   StringIteratee.call(this);
   this.builder = builder || null;

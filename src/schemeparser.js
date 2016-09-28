@@ -3,7 +3,8 @@
 var StringIteratee = require('./stringiteratee');
 var isAlpha = require('./isalpha');
 var toLowerCase = require('./tolowercase');
-var isSchemeChar = require('./isSchemeChar');
+var isSchemeChar = require('./isschemechar');
+var StringBuilder = require('./stringbuilder');
 
 function SchemeParser(builder, s) {
   StringIteratee.call(this);

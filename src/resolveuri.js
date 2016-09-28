@@ -1,5 +1,9 @@
 'use strict';
 
+var parseUri = require('./parseuri');
+var removeDotSegments = require('./removedotsegments');
+var mergeUriPath = require('./mergeuripath');
+
 function resolveUri(base, relative) {
   if (typeof base === 'string') base = parseUri(base);
   if (typeof relative === 'string') relative = parseUri(relative);

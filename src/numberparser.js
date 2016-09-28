@@ -1,5 +1,7 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var StringBuilder = require('./stringbuilder');
 
 function NumberParser(builder, s) {
   StringIteratee.call(this);

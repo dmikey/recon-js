@@ -1,5 +1,7 @@
 'use strict';
 
+var isUnreservedChar = require('./isunreservedchar');
+
 function isParamChar(c) {
   return (
     isUnreservedChar(c) ||

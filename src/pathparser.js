@@ -1,5 +1,11 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var isPathChar = require('./ispathchar');
+var StringBuilder = require('./stringbuilder');
+var isHexChar = require('./ishexchar');
+var decodeHex = require('./decodehex');
+
 function PathParser(path, builder, c1, s) {
   StringIteratee.call(this);
   this.path = path || null;

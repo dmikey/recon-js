@@ -1,5 +1,7 @@
 'use strict';
 
+var isAttr = require('./isattr');
+
 function isMarkupSafe(record) {
   var n = record.length;
   if (n === 0 || !isAttr(record[0])) return false;
@@ -9,4 +11,4 @@ function isMarkupSafe(record) {
   return true;
 }
 
-module.exports = isMarkupSafe
+module.exports = isMarkupSafe;

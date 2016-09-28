@@ -1,5 +1,16 @@
 'use strict';
 
+var StringBuilder = require('./stringbuilder');
+var isRecord = require('./isrecord');
+var isObject = require('./isobject');
+var isField = require('./isfield');
+var isBlockSafe = require('./isblocksafe');
+var isAttr = require('./isattr');
+var isMarkupSafe = require('./ismarkupsafe');
+var StringIterator = require('./stringiterator');
+var isNameStartChar = require('./isnamestartchar');
+var isNameChar = require('./isnamechar');
+var coerceObject = require('./coerceobject');
 
 function ReconWriter(builder) {
   this.builder = builder || new StringBuilder();

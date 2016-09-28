@@ -1,4 +1,7 @@
-'use strict'
+'use strict';
+
+var StringIterator = require('./stringiterator');
+var AuthorityParser = require('./authorityparser');
 
 function parseAuthority(string) {
   var input = new StringIterator(string);

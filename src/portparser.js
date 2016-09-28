@@ -1,5 +1,9 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var isDigit = require('./isdigit');
+var decodeDigit = require('./decodedigit');
+
 function PortParser(port) {
   StringIteratee.call(this);
   this.port = port || 0;
