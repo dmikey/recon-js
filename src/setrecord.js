@@ -1,5 +1,8 @@
 'use strict';
 
+var isField = require('./isfield');
+var equal = require('./equal');
+
 function setRecord(record, key, value) {
   var updated = false;
   var field;

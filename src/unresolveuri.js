@@ -1,5 +1,10 @@
 'use strict';
 
+var parseUri = require('./parseuri');
+var equal = require('./equal');
+var parsePath = require('./parsepath');
+var unmergePath = require('./unmergepath');
+
 function unresolveUri(base, absolute) {
   if (typeof base === 'string') base = parseUri(base);
   if (typeof absolute === 'string') absolute = parseUri(absolute);

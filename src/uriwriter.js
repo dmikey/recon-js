@@ -1,5 +1,19 @@
 'use strict';
 
+var StringBuilder = require('./stringbuilder');
+var StringIterator = require('./stringiterator');
+var isSchemeChar = require('./isschemechar');
+var parseAuthority = require('./parseauthority');
+var isUserInfoChar = require('./isuserinfochar');
+var isUserChar = require('./isuserchar');
+var isHostChar = require('./ishostchar');
+var parsePath = require('./parsepath');
+var isPathChar = require('./ispathchar');
+var isParamChar = require('./isparamchar');
+var isQueryChar = require('./isquerychar');
+var isFragmentChar = require('./isfragmentchar');
+var encodeHex = require('./encodehex');
+
 function UriWriter(builder) {
   this.builder = builder || new StringBuilder();
 }

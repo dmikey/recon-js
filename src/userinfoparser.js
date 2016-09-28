@@ -1,5 +1,12 @@
 'use strict';
 
+var StringIteratee = require('./stringiteratee');
+var StringBuilder = require('./stringbuilder');
+var isUserChar = require('./isuserchar');
+var isHexChar = require('./ishexchar');
+var decodeHex = require('./decodehex');
+var isUserInfoChar = require('./isuserinfochar');
+
 function UserInfoParser(username, password, c1, s) {
   StringIteratee.call(this);
   this.username = username || null;
@@ -17,7 +24,6 @@ UserInfoParser.prototype.feed = function (input) {
   var username = this.username;
   while (!input.isEmpty() || input.isDone()) {
     if (s === 1) {
-      if (!username && !input.isEmpty()) username = new StringBuilder();
       while (!input.isEmpty() && (c = input.head(), isUserChar(c))) {
         input.step();
         username.append(c);

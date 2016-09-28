@@ -1,6 +1,6 @@
 'use strict';
 
-
+var StringIterator = require('./stringiterator');
 
 function StringIteratee() {}
 StringIteratee.prototype.isCont = function () {

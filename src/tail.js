@@ -1,5 +1,9 @@
 'use strict';
 
+var isRecord = require('./isrecord');
+var isObject = require('./isobject');
+var RecordBuilder = require('./recordbuilder');
+
 function tail(value) {
   var i, n, builder;
   if (isRecord(value)) {

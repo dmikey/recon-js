@@ -1,5 +1,7 @@
 'use strict';
 
+var StringIterator = require('./stringiterator');
+
 function StringBuilder(s) {
   this.string = s || '';
 }

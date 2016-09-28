@@ -1,5 +1,9 @@
 'use strict';
 
+var isRecord = require('./isrecord');
+var isField = require('./isfield');
+var isObject = require('./isobject');
+
 function tag(value) {
   if (isRecord(value)) {
     var header = value[0];

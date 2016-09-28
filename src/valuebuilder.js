@@ -1,5 +1,7 @@
 'use strict';
 
+var isField = require('./isfield');
+
 function ValueBuilder() {
   this.items = null;
   this.value = null;

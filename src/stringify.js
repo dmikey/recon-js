@@ -1,5 +1,7 @@
 'use strict';
 
+var ReconWriter = require('./reconwriter');
+
 function stringify(value, options) {
   var writer = new ReconWriter();
   if (options && options.block === false) writer.writeValue(value);
